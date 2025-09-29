@@ -1,0 +1,18 @@
+{ 
+    "data":{
+    "statusUpdateCam": "idle",
+    "camPosition":[0,0,0],
+    "lastCameraPos":-1,
+    "camDistance": [0],
+    "camFrustum":{},
+    "near": false,
+    "lastCallTime":0,
+    "buildings":{},
+    "instances":{},
+    "minDist":10,
+    "mainPivots": {}
+}
+
+}   
+        
+       

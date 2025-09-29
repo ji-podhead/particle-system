@@ -1,0 +1,240 @@
+import React from 'react';
+import './App.css';
+import { useState, useEffect } from 'react'
+import { SceneProps } from '@react-three/fiber'
+import * as THREE from "three/src/Three"
+import { Canvas, extend, useThree, useFrame } from "@react-three/fiber";
+import { Sky, PerspectiveCamera, MapControls } from "@react-three/drei";
+import * as Geo from "geo-three"
+import { Suspense } from 'react';
+import { useRef } from 'react';
+import { Vector3 } from 'three/src/Three';
+import OverPass from './overpass';
+import { Stats } from '@react-three/drei';
+const orsApiKey = "5b3ce3597851110001cf6248b82ee75a583f49d2a5117727c07b0500"
+const BingmapsKey = "AqhZfyKdkyMB7YJe0_1b2QE8DqS78DrDzz33C9dg6Kvs9DU9TURFta3f27emB7Kp"
+{/*             calculate shifted position on 3d plane from basic coordinates
+                  _______________________________  
+Plane :          | 0            90         180   |
+wgs84 coord. :   |-90            0          90   |
+shifted pos :    | neg target+90 | pos target+90 |
+                 |_______________________________|  */}
+{/*________________CONTROL AND CAMERA PROPS___________________*/ }
+let camera = PerspectiveCamera
+camera.position = [0, 4000, 0];
+camera.zoom = 1; camera.up = [0, 1, 0]; camera.minDistance = 0.1; camera.far = 1000000;
+let coords = { "x": 52.520008, "y": 13.404954 }
+{/*________________CREATING THE MAP___________________*/ }
+function Map() {
+  const { scene, gl, camera: camera } = useThree();
+  useEffect(() => {
+    let provider = new Geo.OpenStreetMapsProvider()
+    let heightProvider = new Geo.HeightDebugProvider()
+    let map = new Geo.MapView(Geo.MapView.PLANAR, provider);
+    map.scale.set(180000, 1, 180000)
+    map.isMesh = true
+    map.lod = new Geo.LODRaycast
+    map.updateMatrixWorld(true);
+    scene.add(map)
+    scene.add(new THREE.AmbientLight(0x777777));
+    let directional = new THREE.DirectionalLight(0x888888);
+    directional.position.set(100, 10000, 700);
+    scene.add(directional);
+    let fogColor = new THREE.Color(0xffffff);
+    // Setting fogColor as the background color also
+    // scene.fog = new THREE.Fog(fogColor, 0.25, 4);
+  }, [])
+  return (<scene />);
+}
+{/*________________MAIN FUNCTION___________________*/ }
+export default function Map3D() {
+  const mapRef = useRef(null)
+  const controlRef = useRef(null);
+  const [position, setPosition] = useState(0)
+  const [event1, setEvent1] = useState(null)
+  // const set = useThree((state) => state.set)
+  const [pos, setPos] = useState(new Vector3(-1000, 10000, -100))
+  // OverPass()
+  const target={"x":-90, "y":13.2}
+  function Control() {
+    const { scene, gl, camera: camera } = useThree();
+    gl.toneMapping = THREE.NoToneMapping
+    useFrame((state) => {
+      if (event1 === "pos") {
+
+         target.x=(target.x*1000)
+         target.y=(target.y*1000)
+        setEvent1(null)
+        console.log("setPos")
+        const pos = target //new THREE.Vector3(target.x, 0, target.y)
+      //  camera.rotation.look
+      
+      //controlRef.current.position.set(pos.x, 1000, pos.z)
+        console.log((controlRef.current))
+        //rotation={new THREE.Vector3.lookat(pos)} 
+      }
+      else {
+      }
+    },)
+
+  }
+  return (
+    <div className="h-full w-full flex flex-row items-center content-center justify-center">
+      <div className='w-full h-full z-1'>
+        <Canvas pixelratio={window.devicePixelRatio}
+          camera={camera} linear={true} onCreated={({ gl }) => { gl.toneMapping = THREE.NoToneMapping }}>
+          <Suspense fallback={null}>
+            <Map /><Control />
+           
+          </Suspense>
+           <MapControls ref={controlRef}></MapControls>
+          <Sky distance={45000000000}
+            sunPosition={[5, 100, 8]}
+            inclination={0}
+            azimuth={0.25} />
+            <Stats/>
+        </Canvas>
+      </div>
+      {<div className="w-20 h-10 absolute   z-10">
+        <button onClick={() => setEvent1("pos")} className="w-full h-full  bg-red-400 text-black"> goToBerlin</button>
+      </div>}
+    </div>
+  );
+}
+
+
+Storybook
+Search for components
+Default
+
+import * as React from 'react'
+
+import { SVGLoader } from 'three-stdlib'
+
+import { Box3, Sphere, Vector3 } from 'three'
+
+import { useLoader, Canvas } from '@react-three/fiber'
+
+
+import { MapControls } from '../../src'
+
+
+export default {
+
+  title: 'Controls/MapControls',
+
+  component: MapControlsScene,
+
+}
+
+
+const Cell = ({ color, shape, fillOpacity }) => (
+
+  <mesh>
+
+    <meshBasicMaterial color={color} opacity={fillOpacity} depthWrite={false} transparent />
+
+    <shapeGeometry args={[shape]} />
+
+  </mesh>
+
+)
+
+
+function Svg() {
+  const [center, setCenter] = React.useState(() => new Vector3(0, 0, 0))
+  const ref = React.useRef<THREE.Group>(null)
+  const { paths } = useLoader(SVGLoader, 'map.svg')
+  const shapes = React.useMemo(
+    () =>
+      paths.flatMap((p) =>
+        p.toShapes(true).map((shape) =>
+          //@ts-expect-error this issue has been raised https://github.com/mrdoob/three.js/pull/21059
+          ({ shape, color: p.color, fillOpacity: p.userData.style.fillOpacity })
+        )
+      ),
+    [paths]
+  )
+  React.useEffect(() => {
+    const box = new Box3().setFromObject(ref.current)
+    const sphere = new Sphere()
+    box.getBoundingSphere(sphere)
+    setCenter((vec) => vec.set(-sphere.center.x, -sphere.center.y, 0))
+  }, [])
+  return (
+    <group position={center} ref={ref}>
+      {shapes.map((props) => (
+        //@ts-expect-error this issue has been raised https://github.com/mrdoob/three.js/pull/21058
+        <Cell key={props.shape.uuid} {...props} />
+      ))}
+    </group>
+  )
+}
+
+
+function MapControlsScene() {
+
+  return (
+
+    <Canvas orthographic camera={{ position: [0, 0, 50], zoom: 10, up: [0, 0, 1], far: 10000 }}>
+
+      <color attach="background" args={[243, 243, 243]} />
+
+      <React.Suspense fallback={null}>
+
+        <Svg />
+
+      </React.Suspense>
+
+      <MapControls />
+
+    </Canvas>
+
+  )
+
+}
+
+
+export const MapControlsSceneSt = () => <MapControlsScene />
+
+MapControlsSceneSt.story = {
+
+  name: 'Default',
+
+}
+
+function Boxes() {
+    const meshRef = useRef();
+    const tempObject = new THREE.Object3D();
+    const xAbstand = 180000 / 61
+    const yAbstand = 180000 / 24
+    let id = 0;
+    useEffect(() => {
+        let x1 = new Array(61)
+        let y1 = new Array(24)
+      if (meshRef == null) return;
+      if (meshRef.current == null) return;
+      for (let i = 0; i < 61; i++) {
+        x1[i] = { "key": i, "valx": (-90000 + xAbstand * i) }
+        for (let i2 = 0; i2 < 24; i2++) {
+          y1[i2] = { "key": i2, "valy": -90000 + yAbstand * i2 }
+          id++
+          console.log(JSON.stringify(x1[i].valx, 0, y1[i2].valy)+ " " +i)
+          tempObject.position.set(x1[i].valx, 0, y1[i2].valy);
+          tempObject.scale.set(500);
+          tempObject.updateMatrix();
+          meshRef.current.setMatrixAt(id, tempObject.matrix);
+        }}
+        setX(x1)
+        setY(y1)
+      meshRef.current.instanceMatrix.needsUpdate = true;
+},[]);
+    return (
+      <instancedMesh ref={meshRef} args={[null, null , 61*24]}>
+        <boxGeometry args={[0.1, 0.1, 0.1]}></boxGeometry>
+        <meshBasicMaterial />
+      </instancedMesh>
+    );
+  }
+
+  
