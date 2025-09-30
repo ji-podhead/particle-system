@@ -64,7 +64,7 @@ export function workerUpdateSimulation(index, delta) {
     workers[index].postMessage({ task: "updateSimulation", value: { delta: delta} });
 
 }
-export default function ParticleAutoDisposal(){
+export  function ParticleAutoDisposal(){
     window.addEventListener("beforeunload", function(event) {
         for(let i=0;i<particles.length;i++){
             killWorker(i)

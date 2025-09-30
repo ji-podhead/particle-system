@@ -2,8 +2,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { OrbitControls } from '@react-three/drei'; // Import OrbitControls
 import { Particles } from './lib/workerParticles';
-import ParticleAutoDisposal from './lib/workerHelper';
+import {ParticleAutoDisposal, workerUpdateSimulation} from './lib/workerHelper';
 
 // Component to handle the scene setup and frame updates
 function SceneInitializer({ particle, childParticle, amount }) { // Receive props
@@ -14,13 +15,13 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     const mat = new THREE.MeshLambertMaterial();
     mat.transparent = true;
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const mesh = new THREE.Mesh(scene,geometry, mat);
+    const mesh = new THREE.Mesh(geometry, mat);
     mesh.translateZ(-50);
     mesh.castShadow = true;
 
     // Initialize the particle system
     const particleMesh = particle.InitializeParticles(scene,mesh, amount);
-    scene.add(particleMesh);
+    // scene.add(particleMesh);
     particle.setSpawnOverTime(true);
     particle.setSourceAttributes("opacity", [1], false);
     particle.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
@@ -55,16 +56,29 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
       // childParticle.dispose();
     };
   }, [scene, amount, particle, childParticle]); // Added particle and childParticle to dependencies
-
+  var timer
   useFrame((state, delta) => {
+    timer=timer+1
+    if(timer>10){
+      timer=0
+      console.log(particle)
+      console.log("-----------")
+    }
     particle.updateSimulation(delta, true, true, true);
     // childParticle.updateSimulation(delta, true, true, true);
     particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
+    // workerUpdateSimulation(0,delta)
     // childParticle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
   });
 
   // This component doesn't render anything directly, it sets up the scene
   return null;
+}
+
+// Helper component to use OrbitControls
+function Controls() {
+  const { camera, gl } = useThree();
+  return <OrbitControls args={[camera, gl]} />;
 }
 
 export default function App() {
@@ -74,8 +88,10 @@ export default function App() {
 
   return (
     <>
-      <Canvas camera={{ position: [0, 0, 5] }}> {/* Added a default camera position */}
-        <color attach="background" args={['#000000']} /> {/* Set background color to black */}
+      {/* Wrap Canvas in a div to control its size */}
+      <div style={{ width: '100vw', height: '100vh' }}>
+        <Canvas camera={{ position: [0, 0, 5] }}> {/* Added a default camera position */}
+          <color attach="background" args={['#000000']} /> {/* Set background color to black */}
         {/* Test with a simple mesh to check R3F setup */}
         <mesh>
           <boxGeometry args={[1, 1, 1]} />
@@ -83,8 +99,10 @@ export default function App() {
         </mesh>
         <SceneInitializer particle={particle} childParticle={childParticle} amount={amount} />
         <ParticleAutoDisposal />
+        <Controls /> {/* Add OrbitControls for camera manipulation */}
         {/* Add other scene elements here if needed */}
       </Canvas>
+    </div> {/* Close the div here */}
     </>
   );
 }
