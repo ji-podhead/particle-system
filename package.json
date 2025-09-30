@@ -1,107 +1,24 @@
 {
-  "name": "map",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@changey/react-leaflet-markercluster": "^4.0.0-rc1",
-    "@headlessui/react": "^1.7.10",
-    "@heroicons/react": "^2.0.14",
-    "@react-hook/resize-observer": "^1.2.6",
-    "@react-spring/web": "^9.6.1",
-    "@react-three/drei": "^9.56.24",
-    "@react-three/fiber": "^8.11.0",
-    "@react-three/postprocessing": "^2.7.0",
-    "@reduxjs/toolkit": "^1.9.0",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^14.4.3",
-    "@turf/turf": "^6.5.0",
-    "3d-tiles-renderer": "^0.3.16",
-    "big-number": "^2.0.0",
-    "boundingbox": "^1.4.0",
-    "browserify": "^17.0.0",
-    "d3": "^7.8.2",
-    "d3-array": "^3.2.0",
-    "d3-geo": "^3.1.0",
-    "equirectangular-projection": "^1.0.1",
-    "euclidean-distance": "^1.0.0",
-    "flowbite-react": "^0.3.4",
-    "fs": "^0.0.1-security",
-    "geo-three": "^0.1.2",
-    "gl-matrix": "^3.4.3",
-    "graham-scan": "^0.0.0",
-    "i": "^0.3.7",
-    "leaflet": "^1.9.2",
-    "leva": "^0.9.34",
-    "localforage": "^1.10.0",
-    "npm": "^9.1.2",
-    "ol": "^7.1.0",
-    "opening_hours": "^3.8.0",
-    "openrouteservice-js": "^0.2.0",
-    "osmtogeojson": "^3.0.0-beta.5",
-    "proj4": "^2.8.0",
-    "quick-hull-2d": "^0.1.0",
-    "quickhull": "^1.0.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-helmet": "^6.1.0",
-    "react-leaflet": "^4.2.0",
-    "react-redux": "^8.0.5",
-    "react-redux-worker": "^0.1.9",
-    "react-scripts": "^5.0.1",
-    "react-three-fiber": "^6.0.13",
-    "redux-api-middleware": "^3.2.1",
-    "redux-in-worker": "^0.8.0",
-    "redux-worker": "^0.1.2",
-    "static-kdtree": "^1.0.2",
-    "tailwind": "^4.0.0",
-    "tailwind-scrollbar": "^2.0.1",
-    "tailwind-scrollbar-hide": "^1.1.7",
-    "three": "^0.146.0",
-    "three-sky": "^1.1.3",
-    "three-stdlib": "^2.19.0",
-    "three-trackballcontrols": "^0.9.0",
-    "utm": "^1.1.1",
-    "web-vitals": "^2.1.4"
-  },
+  "name": "js-particle-system",
+  "version": "1.0.0",
+  "description": "A pure JavaScript particle system library.",
+  "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
   "scripts": {
-    "start": "PORT=8080 react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "build": "echo 'No build step configured'"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+  "peerDependencies": {
+    "three": "^0.146.0",
+    "gl-matrix": "^3.4.3"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "browser": {
-    "child_process": false
-  },
-  "devDependencies": {
-    "@types/leaflet": "^1.9.0",
-    "@types/leaflet.markercluster": "^1.5.1",
-    "assert": "^2.0.0",
-    "buffer": "^6.0.3",
-    "crypto-browserify": "^3.12.0",
-    "https-browserify": "^1.0.0",
-    "os-browserify": "^0.3.0",
-    "process": "^0.11.10",
-    "stream-browserify": "^3.0.0",
-    "stream-http": "^3.2.0",
-    "url": "^0.11.0"
-  }
+  "devDependencies": {},
+  "keywords": [
+    "particles",
+    "three.js",
+    "javascript"
+  ],
+  "author": "",
+  "license": "ISC"
 }
