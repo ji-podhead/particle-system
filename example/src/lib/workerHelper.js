@@ -1,20 +1,65 @@
 // psList.dataPS.list[0]?.updateSimulation(delta,true,true)
 // psList.dataPS.list[0]?.updateValues(["transform", "color", "emission","opacity"])
 function postMsgFunction(index, values) {
+    const particle = particles[index];
+    if (!particle || !values) {
+        console.error("postMsgFunction called with invalid index or values");
+        return;
+    }
 
-  //  console.log(particles[index].instance)
-    alert("aaaaaa")
-    particles[index].instance.instanceCount =values.instanceCount
-    particles[index].instance.attributes.boxPosition.array = values.transformArrays[0]
-    particles[index].instance.attributes.rotation.array = values.transformArrays[1]
-    particles[index].instance.attributes.boxSize.array = values.transformArrays[2]
-    particles[index].instance.attributes.aInstanceColor.array = values.colorArray
-    particles[index].instance.attributes.aInstanceEmissive.array = values.emissionArray
-    particles[index].instance.attributes.opacity1.array = values.opacityArray
-    particles[index].lifeTime=values.lifeTime
-    particles[index].properties.get("direction").array=values.directionArray
-   // console.log(index + " got value")
-    particles[index].updateValues(["transform", "color", "emission","opacity"])
+    // Update instance count
+    particle.instance.instanceCount = values.instanceCount;
+
+    const {
+        boxPosition,
+        rotation,
+        boxSize,
+        aInstanceColor,
+        aInstanceEmissive,
+        opacity1
+    } = particle.instance.attributes;
+
+    // Update buffer data using set() to avoid resizing errors
+    if (boxPosition && values.transformArrays && values.transformArrays[0]) {
+        boxPosition.array.set(values.transformArrays[0]);
+        boxPosition.needsUpdate = true;
+    }
+
+    if (rotation && values.transformArrays && values.transformArrays[1]) {
+        rotation.array.set(values.transformArrays[1]);
+        rotation.needsUpdate = true;
+    }
+
+    if (boxSize && values.transformArrays && values.transformArrays[2]) {
+        boxSize.array.set(values.transformArrays[2]);
+        boxSize.needsUpdate = true;
+    }
+
+    if (aInstanceColor && values.colorArray) {
+        aInstanceColor.array.set(values.colorArray);
+        aInstanceColor.needsUpdate = true;
+    }
+
+    if (aInstanceEmissive && values.emissionArray) {
+        aInstanceEmissive.array.set(values.emissionArray);
+        aInstanceEmissive.needsUpdate = true;
+    }
+
+    if (opacity1 && values.opacityArray) {
+        opacity1.array.set(values.opacityArray);
+        opacity1.needsUpdate = true;
+    }
+
+    // Update non-attribute properties
+    if (values.lifeTime) {
+        particle.lifeTime = values.lifeTime;
+    }
+    if (values.directionArray) {
+        const directionProp = particle.properties.get("direction");
+        if (directionProp && directionProp.array) {
+            directionProp.array.set(values.directionArray);
+        }
+    }
 }
 const workers = []
 const events = []

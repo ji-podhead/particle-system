@@ -1113,7 +1113,7 @@ export class Particles {
 		const instancedGeometry = new THREE.InstancedBufferGeometry()
 		this.instance = instancedGeometry
 		instancedGeometry.index = geometry.index
-		instancedGeometry.maxInstancedCount = this.amount
+		// instancedGeometry.maxInstancedCount = this.amount; // This is deprecated
 
 		//instancedGeometry.instanceCount = spawnOverTime == true ? maxSpawnCount : Infinity
 		//+++++++++++++++++ >>passing the data to the dictionary<< ++++++++++++++++++++++++++++++
@@ -1145,7 +1145,7 @@ export class Particles {
 		morphTargetsinfluencesAttriute.dynamic = true
 		morphTargetsAttribute.dynamic = true
 		opacityAttribute.dynamic=true
-		instancedGeometry.instanceCount = Infinity;
+		instancedGeometry.instanceCount = 0; // Set initial instance count to 0
 		instancedGeometry.setAttribute('morphTargetinfluences',morphTargetsinfluencesAttriute)
 		instancedGeometry.setAttribute('morphTargets',morphTargetsAttribute)
 		instancedGeometry.setAttribute('aInstanceColor',colorAttribute)
@@ -1268,7 +1268,7 @@ shader.fragmentShader = `
 'vec3 totalEmissiveRadiance = vInstanceEmissive; ',
 )}`
 };
-	this.instance.instanceCount=0
+	//this.instance.instanceCount=0; // No longer needed, set earlier
 		//++++++++++++ >>add initialized instances to scene <<  ++++++++++++++++++
 		const instaneMesh = new THREE.Mesh(
 			instancedGeometry,
