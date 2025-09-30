@@ -1,118 +1,64 @@
-import React, { useRef, useEffect } from 'react';
-import * as THREE from 'three';
-import Worker from './particle.worker.js';
-import './App.css';
+import React, { useEffect, useRef } from 'react';
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { Particles, ParticleAutoDisposal, startParticleWorker, workerUpdateSimulation } from 'js-particle-system';
 
-function App() {
-    const mountRef = useRef(null);
-    const workerRef = useRef(null);
-    const particleMeshRef = useRef(null);
+export default function App() {
+  const amount = 1000;
+  const workerIndex = useRef(null);
+
+  function SceneInitializer() {
+    const { scene } = useThree();
+    const particle = useRef(new Particles()).current;
 
     useEffect(() => {
-        const currentMount = mountRef.current;
-        workerRef.current = new Worker();
+      const mat = new THREE.MeshLambertMaterial();
+      mat.transparent = true;
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const mesh = new THREE.Mesh(geometry, mat);
+      mesh.translateZ(-50);
+      mesh.castShadow = true;
 
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
-        camera.position.z = 500;
+      particle.InitializeParticles(scene, mesh, amount);
+      particle.setSpawnOverTime(true);
+      particle.setSourceAttributes("opacity", [1], false);
+      particle.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
+      particle.setSourceAttributes("scale", [1, 1, 1], true, 30, 100);
+      particle.setSourceAttributes("rotation", [0, 0, 0], true, -45, 45);
+      particle.setSourceAttributes("emission", [10, 10, 10], false, -45, 45);
+      particle.setSourceAttributes("color", [254.5, 254.0, 0], false, [50, 50, 50], [250, 250, 250]);
+      particle.setMaxLifeTime(1, true, 1.25, 3);
+      particle.setStartDirection(1, 1, 1, true, -50, 50);
+      particle.setAttributeOverLifeTime("opacity", [0], [-0.1], false);
+      particle.setAttributeOverLifeTime("rotation", [0, 0, 0], [2, 20, 2], false);
+      particle.setAttributeOverLifeTime("force", [0, 0, 0], [0, 0, 0], false);
+      particle.setAttributeOverLifeTime("color", [0, 0, 0], [1, 0.1, 0], false, [0, 0, 3], [5, 0, 0]);
+      particle.setSpawnFrequency(2);
+      particle.setMaxSpawnCount(amount);
+      particle.setBurstCount(amount);
+      particle.setSpawnOverTime(true);
+      particle.setForce([10, 10, 10]);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
-        currentMount.appendChild(renderer.domElement);
+      const workerUrl = process.env.PUBLIC_URL + '/ocWorker.js';
+      workerIndex.current = startParticleWorker(particle, workerUrl);
 
-        const geometry = new THREE.BoxGeometry(10, 10, 10);
-        const material = new THREE.MeshNormalMaterial();
+    }, [scene, particle]);
 
-        workerRef.current.onmessage = (e) => {
-            const { type, payload } = e.data;
+    useFrame((state, delta) => {
+      if (workerIndex.current !== null) {
+        workerUpdateSimulation(workerIndex.current, delta);
+      }
+    });
 
-            if (type === 'initialized') {
-                const { transform, scale, rotation, color, opacity } = payload;
+    return null;
+  }
 
-                const instancedGeometry = new THREE.InstancedBufferGeometry();
-                instancedGeometry.index = geometry.index;
-                instancedGeometry.setAttribute('position', geometry.attributes.position);
-
-                instancedGeometry.setAttribute('instancePosition', new THREE.InstancedBufferAttribute(transform, 3));
-                instancedGeometry.setAttribute('instanceScale', new THREE.InstancedBufferAttribute(scale, 3));
-                instancedGeometry.setAttribute('instanceRotation', new THREE.InstancedBufferAttribute(rotation, 3));
-                instancedGeometry.setAttribute('instanceColor', new THREE.InstancedBufferAttribute(color, 3));
-                instancedGeometry.setAttribute('instanceOpacity', new THREE.InstancedBufferAttribute(opacity, 1));
-
-                const mesh = new THREE.Mesh(instancedGeometry, material);
-                mesh.frustumCulled = false;
-                scene.add(mesh);
-                particleMeshRef.current = mesh;
-            }
-
-            if (type === 'update' && particleMeshRef.current) {
-                const { transform, scale, rotation, color, opacity } = payload;
-                const mesh = particleMeshRef.current;
-                mesh.geometry.attributes.instancePosition.array = transform;
-                mesh.geometry.attributes.instanceScale.array = scale;
-                mesh.geometry.attributes.instanceRotation.array = rotation;
-                mesh.geometry.attributes.instanceColor.array = color;
-                mesh.geometry.attributes.instanceOpacity.array = opacity;
-
-                mesh.geometry.attributes.instancePosition.needsUpdate = true;
-                mesh.geometry.attributes.instanceScale.needsUpdate = true;
-                mesh.geometry.attributes.instanceRotation.needsUpdate = true;
-                mesh.geometry.attributes.instanceColor.needsUpdate = true;
-                mesh.geometry.attributes.instanceOpacity.needsUpdate = true;
-            }
-        };
-
-        workerRef.current.postMessage({
-            type: 'init',
-            payload: {
-                amount: 1000,
-                maxLifeTime: { values: 5 },
-                burstCount: 1000,
-                spawnOverTime: false,
-                spawnFrequency: 0,
-                maxSpawnCount: 1000,
-                startPosition: { values: [0, 0, 0], random: true, minRange: -200, maxRange: 200 },
-                startScale: { values: [1, 1, 1] },
-                startRotation: { values: [0, 0, 0] },
-                startDirection: { values: [0, 0, 0] },
-                startOpacity: { values: [1] },
-                startColor: { values: [1, 1, 1], random: true, minRange: 0, maxRange: 1 },
-                startForce: { values: [0, 0, 0] },
-                startForceFieldForce: { values: [0, 0, 0] }
-            }
-        });
-
-        workerRef.current.postMessage({
-            type: 'setAttributeOverLifeTime',
-            payload: {
-                attribute: 'scale',
-                start: [0.1, 0.1, 0.1],
-                end: [5, 5, 5]
-            }
-        });
-
-        workerRef.current.postMessage({
-            type: 'setAttributeOverLifeTime',
-            payload: {
-                attribute: 'color',
-                start: [1, 0, 0],
-                end: [0, 1, 1]
-            }
-        });
-
-        const animate = () => {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        };
-        animate();
-
-        return () => {
-            currentMount.removeChild(renderer.domElement);
-            workerRef.current.terminate();
-        };
-    }, []);
-
-    return <div ref={mountRef} className="App" style={{ width: '100vw', height: '100vh' }} />;
+  return (
+    <>
+      <Canvas camera={{ position: [0, 0, 5] }}>
+        <SceneInitializer />
+        <ParticleAutoDisposal />
+      </Canvas>
+    </>
+  );
 }
-
-export default App;

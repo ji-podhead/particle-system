@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three/src/Three";
-import { Particles } from './workerParticles';
-import ParticleAutoDisposal from './workerHelper';
+import { Particles, ParticleAutoDisposal } from '../lib';
 
 export default function ParticlesMain() {
   const amount = 1000;
