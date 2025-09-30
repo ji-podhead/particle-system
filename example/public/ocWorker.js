@@ -32,9 +32,12 @@ function resetTransform(object1, index, directly) {
     pos1[2] = object1.pointCloud[(index * 3) + 2]
   } else {
     const start = pos = object1.properties.get("transform")
-    pos1[0] = start.values[0]
-    pos1[1] = start.values[1]
-    pos1[2] = start.values[2]
+    // The error was start.values being undefined.
+    // Based on setTransform and the structure of start, it should be start.array[3]
+    // and indexed using (index * 3) similar to pointCloud.
+    pos1[0] = start.array[3][(index * 3)]
+    pos1[1] = start.array[3][(index * 3) + 1]
+    pos1[2] = start.array[3][(index * 3) + 2]
   }
   if (directly) {
     setTransform(object1, pos1[0], pos1[2], pos1[2], index) // Assuming setTransform is also moved

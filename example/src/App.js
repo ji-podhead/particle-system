@@ -43,7 +43,6 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     particle.startPS();
     particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
     startParticleWorker(particle,"./ocWorker.js")
-    updateWorkerValues(0)
     workerUpdateSimulation(0,0.1)
 
     // Placeholder for childParticle initialization if needed

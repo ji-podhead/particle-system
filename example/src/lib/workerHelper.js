@@ -3,7 +3,7 @@
 function postMsgFunction(index, values) {
 
   //  console.log(particles[index].instance)
-  //  alert("aaaaaa")
+    alert("aaaaaa")
     particles[index].instance.instanceCount =values.instanceCount
     particles[index].instance.attributes.boxPosition.array = values.transformArrays[0]
     particles[index].instance.attributes.rotation.array = values.transformArrays[1]
