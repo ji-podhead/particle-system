@@ -1,5 +1,3 @@
-
-
 const lerp = (x, y, a) => x * (1 - a) + y * a;
 const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 const invlerp = (x, y, a) => clamp((a - x) / (y - x));
@@ -40,7 +38,7 @@ self.onmessage = function (input) {
     case ("updateSimulation"): {
     //  console.log(object1)
       delta = input.data.value.delta
-  
+
       // console.log(input.data.value.delta)
       updateSimulation(delta,true,true)
       function resetTransform(index, directly) {
@@ -51,7 +49,8 @@ self.onmessage = function (input) {
           pos1[1] = object1.pointCloud[(index * 3) + 1]
           pos1[2] = object1.pointCloud[(index * 3) + 2]
         } else {
-          const start = pos = object1.properties.get("sourceValues").get("transform")
+          const start = pos = object1.properties.get("sourceValues").get("transf
+orm")
           pos1[0] = start.values[0]
           pos1[1] = start.values[1]
           pos1[2] = start.values[2]
@@ -106,30 +105,37 @@ self.onmessage = function (input) {
           if (pos.random == true) {
             //pos1 wird in resetTransform gesetzt
 
-            newPosition[index0 + ir] = pos1[ir] + range(0, 1, pos.minRange, pos.maxRange, Math.random())
+            newPosition[index0 + ir] = pos1[ir] + range(0, 1, pos.minRange, pos.
+maxRange, Math.random())
           }
           direc1.array[(dirIndex0 + ir)] = direc.values[ir]
           if (direc.random == true) {
-            direc1.array[(dirIndex0 + ir)] += range(0, 1, direc.minRange, direc.maxRange, Math.random())
+            direc1.array[(dirIndex0 + ir)] += range(0, 1, direc.minRange, direc.
+maxRange, Math.random())
 
           }
           if (rot.random == true) {
-            rotation[index0 + ir] = rot1[ir] + (0, 1, rot.minRange, rot.maxRange, Math.random())
+            rotation[index0 + ir] = rot1[ir] + (0, 1, rot.minRange, rot.maxRange
+, Math.random())
           }
           if (scale.random == true) {
-            scaleTemp[index0 + ir] = scale1[ir] + range(0, 1, scale.minRange, scale.maxRange, Math.random())
+            scaleTemp[index0 + ir] = scale1[ir] + range(0, 1, scale.minRange, sc
+ale.maxRange, Math.random())
           }
         }
-        //	alert(object1.properties.get("direction").array)
-        //	todo: set values not really nescessary
-        //object1.setRotation(rot1.values[0], rot1.values[1], rot1.values[2], index)
-        //object1.setScale(scale1.values[0], scale1.values[1], scale1.values[2], index)
+        //      alert(object1.properties.get("direction").array)
+        //      todo: set values not really nescessary
+        //object1.setRotation(rot1.values[0], rot1.values[1], rot1.values[2], in
+dex)
+        //object1.setScale(scale1.values[0], scale1.values[1], scale1.values[2],
+ index)
         //object1.setTransform(pos1[0],pos1[2],pos1[2], index)
-        //	object1.setDirection(direc1[0],direc1[1],direc1[2],index)
+        //      object1.setDirection(direc1[0],direc1[1],direc1[2],index)
 
         attributesoverLifeTimeValues.forEach((value, attribute) => {
           //console.log("reset"  +  attribute)
-          if (attribute != "transform" && attribute != "rotation" && attribute != "scale" && attribute != "force" && attribute != "direction") {
+          if (attribute != "transform" && attribute != "rotation" && attribute !
+= "scale" && attribute != "force" && attribute != "direction") {
             try {
               //console.log("rest")
               const sourceAttribute = sourceValues.get(attribute)
@@ -137,27 +143,34 @@ self.onmessage = function (input) {
               //console.log(sourceAttribute)
               const random = (attr)=>{
                 if(attr.random==true){
-                return range(0, 1, scale.minRange, scale.maxRange, Math.random())
+                return range(0, 1, scale.minRange, scale.maxRange, Math.random()
+)
                }else{
                 return 0
                }
               }
               switch (sourceAttribute.values.length) {
                 case (3): {
-                  setShaderAttribute(attribute, index, [sourceAttribute.values[index * 3]+random(sourceAttribute), sourceAttribute.values[(index * 3) + 1]+random(sourceAttribute), sourceAttribute.values[(index * 3) + 2]+random(sourceAttribute)])
+                  setShaderAttribute(attribute, index, [sourceAttribute.values[i
+ndex * 3]+random(sourceAttribute), sourceAttribute.values[(index * 3) + 1]+rando
+m(sourceAttribute), sourceAttribute.values[(index * 3) + 2]+random(sourceAttribu
+te)])
                   break;
                 }
                 case (2): {
-                  setShaderAttribute(attribute, index, [sourceAttribute.values[index * 2]+random(sourceAttribute), sourceAttribute.values[(index * 2) + 1]]+random(sourceAttribute))
+                  setShaderAttribute(attribute, index, [sourceAttribute.values[i
+ndex * 2]+random(sourceAttribute), sourceAttribute.values[(index * 2) + 1]]+rand
+om(sourceAttribute))
                   break;
                 }
                 case (1): {
-                  setShaderAttribute(attribute, index, sourceAttribute.values)+random(sourceAttribute)
+                  setShaderAttribute(attribute, index, sourceAttribute.values)+r
+andom(sourceAttribute)
                   break;
                 }
               }
 
-              //	console.log(object1.getAttribute(attribute,index,1))
+              //        console.log(object1.getAttribute(attribute,index,1))
             }
             catch {
               console.warn(attribute + " is not defined")
@@ -168,7 +181,8 @@ self.onmessage = function (input) {
      function updateSimulation(delta, reset, kill) {
         //alert(object1.instanceCount)
         if (object1.maxSpawnCount == 0) {
-          return (console.warn("noo need to update the PS! => macSpawnCount is 0"))
+          return (console.warn("noo need to update the PS! => macSpawnCount is 0
+"))
         }
         //reset = reset==undefined?true:false
         //childParticle = childParticle==undefined?false:true
@@ -181,40 +195,46 @@ self.onmessage = function (input) {
         //console.log("spawnfreq:" + object1.spawFrequency)
 
         if (reset == true) {
-          //	console.log("wait " + object1.waitingTime)
+          //    console.log("wait " + object1.waitingTime)
           if (waitingTime < object1.spawFrequency) {
             waitingTime += delta
           } else {
             waitingTime = 0
             //const maxBurst = object1.burstCount + object1.additionalBurstCount
-            //const überschuss = object1.maxSpawnCount - (maxBurst + object1.instanceCount)
-            //	const burstCount = überschuss > 0 ? maxBurst : maxBurst - überschuss
+            //const überschuss = object1.maxSpawnCount - (maxBurst + object1.ins
+tanceCount)
+            //  const burstCount = überschuss > 0 ? maxBurst : maxBurst - übersc
+huss
 
             //console.log("----------------------------------------------")
 
-            
-            const burstCountNew = object1.maxSpawnCount-(object1.burstCount+object1.instanceCount)
+
+            const burstCountNew = object1.maxSpawnCount-(object1.burstCount+obje
+ct1.instanceCount)
                         object1.instanceCount = burstCountNew>0?burstCountNew:0
           console.log(object1.instanceCount)
             //  for (let i = 0; i < object1.burstCount; i++) {
 
             //  if (object1.instanceCount < object1.maxSpawnCount) {
-            //    
+            //
                // console.log(object1.instanceCount)
-                //object1.resetParticle(object1.instanceCount,attributesoverLifeTimeValues)
+                //object1.resetParticle(object1.instanceCount,attributesoverLife
+TimeValues)
               //  object1.lifeTime[object1.instanceCount + 1] = 0
 
         //     } else {
         //     }
         //     if (object1.particleBirthFunction != undefined) {
-        //       object1.particleBirthFunction.args.index = object1.instanceCount
-        //       object1.particleBirthFunction.func(object1.particleBirthFunction.args)
+        //       object1.particleBirthFunction.args.index = object1.instanceCoun
+t
+        //       object1.particleBirthFunction.func(object1.particleBirthFunctio
+n.args)
         //     }
         //   }
             //console.log("newCount" + object1.instanceCount)
             //console.log(object1.lifeTime)
             //console.log(object1.properties.get("transform"))
-            //	alert("neRound")
+            //  alert("neRound")
           }
         }
         let force = [].concat(object1.force)
@@ -224,7 +244,8 @@ self.onmessage = function (input) {
           object1.lifeTime[index] += delta
           if (object1.lifeTime[index] <= object1.maxLifeTime) {
             let direction = object1.properties.get("direction").array
-            const lifeTimedelta = (object1.lifeTime[index] / object1.maxLifeTime)
+            const lifeTimedelta = (object1.lifeTime[index] / object1.maxLifeTime
+)
             index0 = index * 4
             index1 = index0 + 1
             index2 = index1 + 1
@@ -233,23 +254,31 @@ self.onmessage = function (input) {
             dirIndex2 = dirIndex1 + 1
             //object1.properties.get("opacity").array[i]=0
             //object1.properties.get("opacity").attribute.needsUpdate=true;
-           //  	console.log("upedate " + i +" plus ofs " + (index) + " life " +  object1.lifeTime[index] + " delta " + lifeTimedelta )
+           //   console.log("upedate " + i +" plus ofs " + (index) + " life " +
+ object1.lifeTime[index] + " delta " + lifeTimedelta )
             const step = lifeTimedelta
             const newPosition = object1.properties.get("transform").array[3]
             const rotation = object1.properties.get("transform").array[1]
             const scaleTemp = object1.properties.get("transform").array[2]
-            const sourceRot = object1.properties.get("sourceValues").get("rotation").values
+            const sourceRot = object1.properties.get("sourceValues").get("rotati
+on").values
             let forceFieldForce = new Float32Array(object1.forceFieldForce)
             attributesoverLifeTimeValues.forEach((value, attribute) => {
               if (attribute == "transform") {
                 if (attribute.multiply == true) {
-                  newPosition[index0] = (newPosition[index0] * (value.values[0] * step))
-                  newPosition[index1] = (newPosition[index1] * (value.values[1] * step))
-                  newPosition[index2] = (newPosition[index2] * (value.values[2] * step))
+                  newPosition[index0] = (newPosition[index0] * (value.values[0]
+* step))
+                  newPosition[index1] = (newPosition[index1] * (value.values[1]
+* step))
+                  newPosition[index2] = (newPosition[index2] * (value.values[2]
+* step))
                 } else {
-                  newPosition[index0] = (newPosition[index0] += (value.values[0] * step))
-                  newPosition[index1] = (newPosition[index1] += (value.values[1] * step))
-                  newPosition[index2] = (newPosition[index2] += (value.values[2] * step))
+                  newPosition[index0] = (newPosition[index0] += (value.values[0]
+ * step))
+                  newPosition[index1] = (newPosition[index1] += (value.values[1]
+ * step))
+                  newPosition[index2] = (newPosition[index2] += (value.values[2]
+ * step))
                 }
 
               }
@@ -270,9 +299,12 @@ self.onmessage = function (input) {
                   scaleTemp[index1] = value.values[1] * step * scaleTemp[index1]
                   scaleTemp[index2] = value.values[2] * step * scaleTemp[index2]
                 } else {
-                  scaleTemp[index0] = (value.values[0] * step) + scaleTemp[index0]
-                  scaleTemp[index1] = (value.values[1] * step) + scaleTemp[index1]
-                  scaleTemp[index2] = (value.values[2] * step) + scaleTemp[index2]
+                  scaleTemp[index0] = (value.values[0] * step) + scaleTemp[index
+0]
+                  scaleTemp[index1] = (value.values[1] * step) + scaleTemp[index
+1]
+                  scaleTemp[index2] = (value.values[2] * step) + scaleTemp[index
+2]
                 }
               }
               else if (attribute == "forceFieldForce") {
@@ -302,13 +334,19 @@ self.onmessage = function (input) {
               else if (attribute == "direction") {
 
                 if (attribute.multiply == true) {
-                  direction[dirIndex0] = direction[dirIndex0] * (value.values[0] * (step))
-                  direction[dirIndex1] = direction[dirIndex1] * (value.values[1] * (step))
-                  direction[dirIndex2] = direction[dirIndex2] * (value.values[2] * (step))
+                  direction[dirIndex0] = direction[dirIndex0] * (value.values[0]
+ * (step))
+                  direction[dirIndex1] = direction[dirIndex1] * (value.values[1]
+ * (step))
+                  direction[dirIndex2] = direction[dirIndex2] * (value.values[2]
+ * (step))
                 } else {
-                  direction[dirIndex0] = direction[dirIndex0] + (value.values[0] * (step))
-                  direction[dirIndex1] = direction[dirIndex1] + (value.values[1] * (step))
-                  direction[dirIndex2] = direction[dirIndex2] + (value.values[2] * (step))
+                  direction[dirIndex0] = direction[dirIndex0] + (value.values[0]
+ * (step))
+                  direction[dirIndex1] = direction[dirIndex1] + (value.values[1]
+ * (step))
+                  direction[dirIndex2] = direction[dirIndex2] + (value.values[2]
+ * (step))
                 }
               }
               else {
@@ -316,12 +354,14 @@ self.onmessage = function (input) {
                   const arr = object1.properties.get(attribute).array
                   if (value.multiply == true) {
                     for (let i2 = 0; i2 < value.values.length; i2++) {
-                      arr[((index) * value.values.length) + i2] = arr[((index) * value.values.length) + i2] * (value.values[i2] * step)
+                      arr[((index) * value.values.length) + i2] = arr[((index) *
+ value.values.length) + i2] * (value.values[i2] * step)
                       ////console.log(arr[i+i2])
                     }
                   } else {
                     for (let i2 = 0; i2 < value.values.length; i2++) {
-                      arr[((index) * value.values.length) + i2] = arr[((index) * value.values.length) + i2] + (value.values[i2] * step)
+                      arr[((index) * value.values.length) + i2] = arr[((index) *
+ value.values.length) + i2] + (value.values[i2] * step)
                       ////console.log(arr[i+i2])
                     }
                   }
@@ -332,27 +372,34 @@ self.onmessage = function (input) {
               }
             })
             //todo: forcefield force mit kreutzprodukt berechnen
-            if (forceFieldForce[0] > 0 || forceFieldForce[1] > 0 || forceFieldForce[2] > 0) {
+            if (forceFieldForce[0] > 0 || forceFieldForce[1] > 0 || forceFieldFo
+rce[2] > 0) {
               if (object1.startPositionFromgeometry == true) {
                 newPosition[index0] += forceFieldForce[0]
                 newPosition[index1] += forceFieldForce[1]
                 newPosition[index2] += forceFieldForce[2]
                 if (
-                  object1.instances.properties.transform.array[3][(index) * 4] != object1.forceField[(index) * 3]
-                  && object1.instances.properties.transform.array[3][(index) * 4 + 1] != object1.forceField[(index) * 3 + 1]
-                  && object1.instances.properties.transform.array[3][(index) * 4 + 2] != object1.forceField[(index) * 3 + 2]) {
+                  object1.instances.properties.transform.array[3][(index) * 4] !
+= object1.forceField[(index) * 3]
+                  && object1.instances.properties.transform.array[3][(index) * 4
+ + 1] != object1.forceField[(index) * 3 + 1]
+                  && object1.instances.properties.transform.array[3][(index) * 4
+ + 2] != object1.forceField[(index) * 3 + 2]) {
                   newPosition[index0] += forceFieldForce
                   newPosition[index1] += forceFieldForce
                   newPosition[index2] += forceFieldForce
                 }
               }
             }
-            newPosition[index0] += (direction[index0] !== 0 ? (force[0] * direction[index0]) : force[0])
-            newPosition[index1] += (direction[index1] !== 0 ? (force[1] * direction[index1]) : force[1])
-            newPosition[index2] += (direction[index2] !== 0 ? (force[2] * direction[index2]) : force[2])
-            //direction[0]!==0&&	(force[0] *=direction[0])
-            //direction[1]!==0&&	(force[1] *=direction[1])
-            //direction[2]!==0&&	(force[2] *=direction[2])
+            newPosition[index0] += (direction[index0] !== 0 ? (force[0] * direct
+ion[index0]) : force[0])
+            newPosition[index1] += (direction[index1] !== 0 ? (force[1] * direct
+ion[index1]) : force[1])
+            newPosition[index2] += (direction[index2] !== 0 ? (force[2] * direct
+ion[index2]) : force[2])
+            //direction[0]!==0&&        (force[0] *=direction[0])
+            //direction[1]!==0&&        (force[1] *=direction[1])
+            //direction[2]!==0&&        (force[2] *=direction[2])
             //newPosition[0] +=
             //newPosition[1] +=
             //newPosition[2] +=
@@ -367,13 +414,16 @@ self.onmessage = function (input) {
 
 
 
-            //	//console.log("newPosition " + newPosition + " force "+ force	)
+            //  //console.log("newPosition " + newPosition + " force "+ force
+)
 
-            //	object1.setTransform(x, y, z, index)
-            //+++++++++++++++++++++++++++++++++++	childParticles  +++++++++++++++++++++++++++++++++++++++++++++
+            //  object1.setTransform(x, y, z, index)
+            //+++++++++++++++++++++++++++++++++++       childParticles  ++++++++
++++++++++++++++++++++++++++++++++++++
             //  if(object1.childParticles.size>0){
             // for (const [key, value] of object1.childParticles.entries()) {
-            //    const tempTimerMax=value.spawnFrequencyOverLifeTime>0?(value.ps.spawFrequency * lifeTimedelta):value.ps.spawFrequency
+            //    const tempTimerMax=value.spawnFrequencyOverLifeTime>0?(value.p
+s.spawFrequency * lifeTimedelta):value.ps.spawFrequency
             //  if (object1.childSpawnTimer <tempTimerMax ) {
             //      object1.childSpawnTimer += delta
             //    }
@@ -382,15 +432,21 @@ self.onmessage = function (input) {
             //      spawn()
             //    }
             //  function spawn() {
-            // const currentBurstCount = value.spawnOverLifeTime != 0? (value.ps.burstCount * lifeTimedelta):value.ps.burstCount
-            // //value.ps.instanceCount+currentBurstCount<value.ps.maxSpawnCount?currentBurstCount:value.ps.maxSpawnCount
-            // value.ps.resetParticle(value.tempIndex,value.ps.attributesoverLifeTime)
-            // value.ps.setTransform(newPosition[index0],newPosition[index1],newPosition[index2],value.tempIndex)
+            // const currentBurstCount = value.spawnOverLifeTime != 0? (value.ps
+.burstCount * lifeTimedelta):value.ps.burstCount
+            // //value.ps.instanceCount+currentBurstCount<value.ps.maxSpawnCount
+?currentBurstCount:value.ps.maxSpawnCount
+            // value.ps.resetParticle(value.tempIndex,value.ps.attributesoverLif
+eTime)
+            // value.ps.setTransform(newPosition[index0],newPosition[index1],new
+Position[index2],value.tempIndex)
             // if(value.ps.particleBirthFunction!=undefined){
             //  value.ps.particleBirthFunction.args.index=index
-            //  value.ps.particleBirthFunction.func (value.ps.particleBirthFunction.args)
+            //  value.ps.particleBirthFunction.func (value.ps.particleBirthFunct
+ion.args)
             // }
-            // ////console.log("tempindex: " +value.tempIndex + " " +value.ps.getTransform(value.tempIndex))
+            // ////console.log("tempindex: " +value.tempIndex + " " +value.ps.ge
+tTransform(value.tempIndex))
             // if(value.tempIndex<value.ps.maxSpawnCount){
             //  value.tempIndex+=1
             //  if(value.ps.instanceCount<value.ps.maxSpawnCount){
@@ -404,25 +460,25 @@ self.onmessage = function (input) {
             //value.ps.setSourceAttributes("transform",[x,y,z])
             // }
             //  }
-            //  
+            //
             // }
             //  }
 
           }
           else if (kill == true) {
             //for (const [key, value] of object1.childParticles.entries()) {
-            //	if(value.ps.instanceCount>0){
+            //  if(value.ps.instanceCount>0){
 
-            //		value.ps.instanceCount -= value.ps.burstCount
-            //	}
-            //}			
+            //          value.ps.instanceCount -= value.ps.burstCount
+            //  }
+            //}
             killCount += 1
             object1.lifeTime[index] = 0
             resetParticle(index, attributesoverLifeTimeValues)
             //console.log("kill " + index)
-            //	if(object1.particleKillFunction!=undefined){
-            //	let args =object1.particleKillFunction.args
-            //	args.index=i
+            //  if(object1.particleKillFunction!=undefined){
+            //  let args =object1.particleKillFunction.args
+            //  args.index=i
             //object1.particleKillFunction.func(args)
             //}
           }
@@ -441,17 +497,15 @@ self.onmessage = function (input) {
           directionArray: object1.properties.get("direction").array,
           instanceCount:object1.instanceCount
         }
-        
+
       })
       return
       }
-      
+
       return
-      
+
       // object?.updateValues(["transform", "color", "emission","opacity"])
- 
+
     }
   }
 }
-
-
