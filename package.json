@@ -20,5 +20,8 @@
     "javascript"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@react-three/drei": "9.112.1"
+  }
 }

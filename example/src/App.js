@@ -4,7 +4,7 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls } from '@react-three/drei'; // Import OrbitControls
 import { Particles } from './lib/workerParticles';
-import {ParticleAutoDisposal, workerUpdateSimulation} from './lib/workerHelper';
+import {ParticleAutoDisposal, startParticleWorker, updateWorkerValues, killWorker, workerUpdateSimulation} from './lib/workerHelper';
 
 // Component to handle the scene setup and frame updates
 function SceneInitializer({ particle, childParticle, amount }) { // Receive props
@@ -42,6 +42,9 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     particle.setForce([10, 10, 10]);
     particle.startPS();
     particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
+    startParticleWorker(particle,"./ocWorker.js")
+    updateWorkerValues(0)
+    workerUpdateSimulation(0,0.1)
 
     // Placeholder for childParticle initialization if needed
     // childParticle.InitializeParticles(scene, mesh, 100000);
@@ -64,9 +67,11 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
       console.log(particle)
       console.log("-----------")
     }
-    particle.updateSimulation(delta, true, true, true);
-    // childParticle.updateSimulation(delta, true, true, true);
-    particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
+    // particle.updateSimulation(delta, true, true, true);
+    // // childParticle.updateSimulation(delta, true, true, true);
+    // particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
+
+ 
     // workerUpdateSimulation(0,delta)
     // childParticle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
   });
