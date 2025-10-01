@@ -1,11 +1,8 @@
 import { Particles } from './workerParticles.js';
-import {ParticleAutoDisposal, startParticleWorker, updateWorkerValues, killWorker, workerUpdateSimulation } from './workerHelper.js';
+import { WorkerManager, ParticleAutoDisposal } from './workerHelper.js';
 
 export {
   Particles,
-  startParticleWorker,
-  updateWorkerValues,
-  killWorker,
-  workerUpdateSimulation,
-  ParticleAutoDisposal
+  WorkerManager,
+  ParticleAutoDisposal,
 };

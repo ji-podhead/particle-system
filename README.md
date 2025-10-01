@@ -65,12 +65,11 @@ This class, defined in `workerParticles.js`, is used to create and manage a part
 
 ### Multi-Threaded API (`workerHelper.js`)
 
-These functions manage the interaction with the Web Worker.
+The multi-threaded API has been streamlined. Instead of manually managing the worker, you now simply enable it during initialization.
 
-- `startParticleWorker(particle, workerUrl)`: Creates a new Web Worker and initializes it with the particle system's data. Returns an index for the worker instance.
-- `workerUpdateSimulation(index, delta)`: Sends a message to the specified worker to run its simulation for one frame.
-- `killWorker(index)`: Terminates a worker.
-- `ParticleAutoDisposal()`: A helper that automatically terminates all workers when the page is closed.
+- `InitializeParticles(..., useWorker = false)`: The `InitializeParticles` method now accepts a final boolean argument, `useWorker`. If set to `true`, the `Particles` class will automatically create a `WorkerManager` to handle the simulation in a separate thread.
+- `WorkerManager`: This class is now used internally by the `Particles` class to manage the worker's lifecycle and communication. You do not need to interact with it directly.
+- `ParticleAutoDisposal(managers)`: A helper that can automatically terminate workers when the page is closed. This is now less critical since the worker is tied to the `Particles` instance.
 
 ## Usage Examples
 
@@ -82,7 +81,7 @@ This setup is simpler and runs entirely on the main thread. It's ideal for small
 
 ```javascript
 import * as THREE from 'three';
-import { Particles } from './lib/workerParticles'; // Adjust path as needed
+import { Particles } from './lib'; // Adjust path as needed
 
 // 1. Basic Three.js Scene Setup
 const scene = new THREE.Scene();
@@ -98,12 +97,12 @@ const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const mesh = new THREE.Mesh(geometry, material);
 
 // 3. Initialize the Particles
-particleSystem.InitializeParticles(scene, mesh, 10000); // 10,000 particles
+// The last argument `useWorker` is false by default.
+particleSystem.InitializeParticles(scene, mesh, 10000, /* other params */, false);
 
 // 4. Configure Particle Properties
 particleSystem.setForce([0, -9.8, 0]); // Apply gravity
 particleSystem.setMaxLifeTime(5, true, 2, 8); // Random lifetime between 2 and 8 seconds
-particleSystem.setStartDirection(0, 10, 0, true, -5, 5); // Upward direction with random spread
 // ... add other configurations ...
 particleSystem.startPS(); // Start the particle system simulation
 
@@ -114,8 +113,7 @@ function animate() {
     const delta = clock.getDelta();
 
     // Update the simulation on the main thread
-    particleSystem.updateSimulation(delta, true, true, true);
-    particleSystem.updateValues(["transform", "color", "opacity"]); // Update GPU buffers
+    particleSystem.updateSimulation(delta);
 
     renderer.render(scene, camera);
 }
@@ -125,36 +123,40 @@ animate();
 
 ### Multi-Threaded Example
 
-This setup offloads physics calculations to a Web Worker, keeping the main thread free for rendering. It's recommended for high particle counts.
+This setup offloads physics calculations to a Web Worker. The API is now almost identical to the single-threaded version.
 
 ```javascript
 import * as THREE from 'three';
-import { Particles } from './lib/workerParticles';
-import { startParticleWorker, workerUpdateSimulation } from './lib/workerHelper';
+import { Particles } from './lib';
 
 // 1. Basic Three.js Scene Setup (Same as above)
 // ...
 
-// 2. Create a Particle System Instance (Same as above)
+// 2. Create a Particle System Instance
 const particleSystem = new Particles();
-// ... initialize and configure the particle system exactly as in the single-threaded example ...
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+const mesh = new THREE.Mesh(geometry, material);
+
+// 3. Initialize the Particles with the worker enabled
+// Simply set the last argument of InitializeParticles to `true`.
+particleSystem.InitializeParticles(scene, mesh, 50000, /* other params */, true);
+
+// 4. Configure Particle Properties (Same as single-threaded)
+// Any changes made here are automatically synced with the worker.
+particleSystem.setForce([0, -9.8, 0]);
+particleSystem.setMaxLifeTime(5, true, 2, 8);
+// ...
 particleSystem.startPS();
 
-// 3. Start the Web Worker
-// The worker will receive all the configuration data we just set.
-const workerIndex = startParticleWorker(particleSystem, './ocWorker.js'); // URL to the worker script
-
-// 4. Animation Loop
+// 5. Animation Loop
 const clock = new THREE.Clock();
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    // Instead of calling updateSimulation(), send a message to the worker
-    workerUpdateSimulation(workerIndex, delta);
-    
-    // The worker will automatically post back the updated data,
-    // and the `postMsgFunction` in workerHelper.js will handle updating the buffers.
+    // The API call is the same! The Particles class handles delegating to the worker.
+    particleSystem.updateSimulation(delta);
 
     renderer.render(scene, camera);
 }

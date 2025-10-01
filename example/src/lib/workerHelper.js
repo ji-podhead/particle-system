@@ -1,93 +1,89 @@
-// psList.dataPS.list[0]?.updateSimulation(delta,true,true)
-// psList.dataPS.list[0]?.updateValues(["transform", "color", "emission","opacity"])
-function postMsgFunction(index, values) {
-    // console.log("lifetime array")
-    // console.log(values.lifeTime)
-  //  console.log(particles[index].instance)
-  //  alert("aaaaaa")
-    particles[index].instance.instanceCount = values.instanceCount; // Log instanceCount
-    console.log(`Particle ${index} instanceCount: ${values.instanceCount}`);
+export class WorkerManager {
+    constructor(particle) {
+        this.particle = particle;
+        this.worker = new Worker('worker.bundle.js');
+        this.worker.addEventListener('message', this.handleMessage.bind(this));
 
-    if (values.transform) {
-        try {
-            particles[index].instance.attributes.boxPosition.array = values.transform;
-            particles[index].instance.attributes.rotation.array = values.rotation;
-            particles[index].instance.attributes.boxSize.array = values.scale;
-        } catch (error) {
-            console.error(`Error assigning transform arrays for particle ${index}:`, error);
-            console.error(`Received transformArrays:`, values);
-            // Optionally, you could try to assign default empty arrays or skip assignment here
-            // to prevent the application from crashing, but logging the error is crucial for debugging.
-        }
-    } else {
-        console.warn("worker received no values");
+        // Initial setup message
+        this.callMethod('init', { index: 0 }); // Assuming single particle system for now
+
+        // Pass all serializable properties to the worker
+        this.callMethod('updateDefaultValues', {
+            object: {
+                amount: this.particle.amount,
+                noise: this.particle.noise,
+                pointCloud: this.particle.pointCloud,
+                startPositionFromgeometry: this.particle.startPositionFromgeometry,
+                forcefield: this.particle.forcefield,
+                force: this.particle.force,
+                forceFieldForce: this.particle.forceFieldForce,
+                // Convert Maps to plain objects for serialization
+                attributesoverLifeTime: Object.fromEntries(this.particle.attributesoverLifeTime),
+                properties: {
+                    ...Object.fromEntries(this.particle.properties),
+                    sourceValues: Object.fromEntries(this.particle.properties.get("sourceValues"))
+                },
+                spawFrequency: this.particle.spawFrequency,
+                maxSpawnCount: this.particle.maxSpawnCount,
+                spawnOverTime: this.particle.spawnOverTime,
+                burstCount: this.particle.burstCount,
+                instanceCount: this.particle.instance.instanceCount,
+                spawnOfset: this.particle.spawnOfset
+            }
+        });
     }
 
-    particles[index].lifeTime=values.lifeTime
-    particles[index].properties.get("direction").array=values.directionArray
-   // console.log(index + " got value")
-    particles[index].updateValues(["transform", "color", "emission","opacity"])
-}
-const workers = []
-const events = []
-const particles = []
-export function startParticleWorker(particle) {
-    particles.push(particle)
-    let index = particles.length - 1
-    workers.push(new Worker("ocWorker.js"))
-    events.push(event => { postMsgFunction(event.data.index, event.data.values); })
-    workers[index].addEventListener("message", events[index]);
-    updateWorkerValues(index)
-    return (index)
-}
-export function updateWorkerValues(index) {
-    console.log("default particles values")
-    console.log(particles[index])
+    handleMessage(event) {
+        const { values } = event.data;
+        if (!values) return;
 
-    workers[index].postMessage({
-        task: "init", index:index})
-    workers[index].postMessage({
-        task: "updateDefaultValues", value: {
-            object: {
-            
-                amount: particles[index].amount,
-                noise: particles[index].noise,
-                pointCloud: particles[index].pointCloud,
-                startPositionFromgeometry: particles[index].startPositionFromgeometry,
-                forcefield: particles[index].forcefield,
-                force: particles[index].force,
-                forceFieldForce: particles[index].forceFieldForce,
-                attributesoverLifeTime: particles[index].attributesoverLifeTime,
-                properties: particles[index].properties,
-                spawFrequency: particles[index].spawFrequency,
-                maxSpawnCount: particles[index].maxSpawnCount,
-                spawnOverTime: particles[index].spawnOverTime,
-                burstCount: particles[index].burstCount,
-                instanceCount: particles[index].instance.instanceCount,
-                spawnOfset: particles[index].spawnOfset
-                
-            }
+        const { instance } = this.particle;
+        instance.instanceCount = values.instanceCount;
+
+        // Update buffer attributes on the main thread
+        if (values.transform) {
+            instance.attributes.boxPosition.array.set(values.transform);
+            instance.attributes.boxPosition.needsUpdate = true;
         }
-    });
-    console.log("updated worker")
-}
-export function killWorker(index) {
-    console.log("terminate ocWorker")
-    workers[index].removeEventListener("error", events[index]);
-    workers[index].terminate();
-}
-export function workerUpdateSimulation(index, delta) {
-    workers[index].postMessage({ task: "updateSimulation", value: { delta: delta} });
+        if (values.rotation) {
+            instance.attributes.rotation.array.set(values.rotation);
+            instance.attributes.rotation.needsUpdate = true;
+        }
+        if (values.scale) {
+            instance.attributes.boxSize.array.set(values.scale);
+            instance.attributes.boxSize.needsUpdate = true;
+        }
+        if (values.color) {
+            this.particle.properties.get('color').array.set(values.color);
+            this.particle.properties.get('color').attribute.needsUpdate = true;
+        }
+        if (values.emission) {
+            this.particle.properties.get('emission').array.set(values.emission);
+            this.particle.properties.get('emission').attribute.needsUpdate = true;
+        }
+        if (values.opacity) {
+            this.particle.properties.get('opacity').array.set(values.opacity);
+            this.particle.properties.get('opacity').attribute.needsUpdate = true;
+        }
 
+        // Also update the CPU-side arrays
+        this.particle.properties.get('direction').array.set(values.direction);
+        this.particle.properties.get('lifeTime').array.set(values.lifeTime);
+    }
+
+    callMethod(task, value) {
+        this.worker.postMessage({ task, value });
+    }
+
+    dispose() {
+        console.log("Terminating particle worker.");
+        this.worker.terminate();
+    }
 }
-export  function ParticleAutoDisposal(){
+
+// This function can be used for cleanup
+export function ParticleAutoDisposal(managers) {
     window.addEventListener("beforeunload", function(event) {
-        for(let i=0;i<particles.length;i++){
-            killWorker(i)
-            particles[i].instance.dispose()
-        }  
-       
-    //  event.returnValue = "pls stay"; //"Any text"; //true; //false;
-      //return null; //"Any text"; //true; //false;
+        managers.forEach(manager => manager.dispose());
     });
 }

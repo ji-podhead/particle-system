@@ -4,20 +4,20 @@ module.exports = {
   
  sourceType: "unambiguous",
   mode: 'development',
-  entry: './src/index.js',
+  entry: {
+    main: './src/index.js',
+    worker: './src/ocWorker.js',
+  },
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
+    filename: '[name].bundle.js',
   },
   resolve: {
     alias: { "stream": require.resolve("stream-browserify") }
  },
   devServer: {
     static: {
-      directory: path.resolve(__dirname, 'public'), // Serve files from the public directory
-      mimeTypes: {
-        "js": "application/javascript", // Explicitly set MIME type for JS files
-      },
+      directory: path.resolve(__dirname, 'dist'),
     },
     port: 3000,
     open: true,
