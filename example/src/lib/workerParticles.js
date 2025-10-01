@@ -625,24 +625,19 @@ export class Particles {
 //
 //	}
 //}
-	burst(amount1,position1){
-		let iterator=0
-	const	lifeTime=this.properties.get("lifeTime").array
-
-	for (let i=0;i< amount1;i++)
-	{
-		let index
-		if(this.instance.instanceCount>=this.maxSpawnCount){
-			index=0
-			lifeTime[0]=0
-		}
-		else{
-			this.instance.instanceCount+=1
-		}
-		this.resetParticle(i,this.attributesoverLifeTime)
-		this.setTransform(position1[0],position1[1],position1[2],i)
-		}
-	}
+	burst(amount, position) {
+        if (this.worker) {
+            this.worker.postMessage({
+                task: 'burst',
+                value: {
+                    amount,
+                    position
+                }
+            });
+        } else {
+            console.warn("Burst called but no worker is attached to the particle system.");
+        }
+    }
 	startPS(){
 	const	lifeTime=this.properties.get("lifeTime").array
 	const max=this.properties.get("sourceValues").get("maxLifeTime")
@@ -697,7 +692,7 @@ export class Particles {
 			rot1=rot.values
 			scale1=scale.values
 			for (let i=0;i<3;i++){
-				positionVector[i]=pos1.values[i]
+				positionVector[i]=pos1[i]
 				rotationVector[i]=rot.values[i]
 				scaleVector[i]=scale.values[i]
 			}
@@ -1113,7 +1108,7 @@ export class Particles {
 		const instancedGeometry = new THREE.InstancedBufferGeometry()
 		this.instance = instancedGeometry
 		instancedGeometry.index = geometry.index
-		instancedGeometry.maxInstancedCount = this.amount
+		// instancedGeometry.maxInstancedCount = this.amount; // This is deprecated
 
 		//instancedGeometry.instanceCount = spawnOverTime == true ? maxSpawnCount : Infinity
 		//+++++++++++++++++ >>passing the data to the dictionary<< ++++++++++++++++++++++++++++++
@@ -1145,7 +1140,7 @@ export class Particles {
 		morphTargetsinfluencesAttriute.dynamic = true
 		morphTargetsAttribute.dynamic = true
 		opacityAttribute.dynamic=true
-		instancedGeometry.instanceCount = Infinity;
+		instancedGeometry.instanceCount = 0; // Set initial instance count to 0
 		instancedGeometry.setAttribute('morphTargetinfluences',morphTargetsinfluencesAttriute)
 		instancedGeometry.setAttribute('morphTargets',morphTargetsAttribute)
 		instancedGeometry.setAttribute('aInstanceColor',colorAttribute)
@@ -1268,7 +1263,7 @@ shader.fragmentShader = `
 'vec3 totalEmissiveRadiance = vInstanceEmissive; ',
 )}`
 };
-	this.instance.instanceCount=0
+	//this.instance.instanceCount=0; // No longer needed, set earlier
 		//++++++++++++ >>add initialized instances to scene <<  ++++++++++++++++++
 		const instaneMesh = new THREE.Mesh(
 			instancedGeometry,
