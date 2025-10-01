@@ -1,85 +1,48 @@
+
+
+
+
 // psList.dataPS.list[0]?.updateSimulation(delta,true,true)
 // psList.dataPS.list[0]?.updateValues(["transform", "color", "emission","opacity"])
 function postMsgFunction(index, values) {
-    const particle = particles[index];
-    if (!particle || !values) {
-        console.error("postMsgFunction called with invalid index or values");
-        return;
-    }
-
-    // Update instance count
-    particle.instance.instanceCount = values.instanceCount;
-
-    const {
-        boxPosition,
-        rotation,
-        boxSize,
-        aInstanceColor,
-        aInstanceEmissive,
-        opacity1
-    } = particle.instance.attributes;
-
-    // Update buffer data using set() to avoid resizing errors
-    if (boxPosition && values.transformArrays && values.transformArrays[0]) {
-        boxPosition.array.set(values.transformArrays[0]);
-        boxPosition.needsUpdate = true;
-    }
-
-    if (rotation && values.transformArrays && values.transformArrays[1]) {
-        rotation.array.set(values.transformArrays[1]);
-        rotation.needsUpdate = true;
-    }
-
-    if (boxSize && values.transformArrays && values.transformArrays[2]) {
-        boxSize.array.set(values.transformArrays[2]);
-        boxSize.needsUpdate = true;
-    }
-
-    if (aInstanceColor && values.colorArray) {
-        aInstanceColor.array.set(values.colorArray);
-        aInstanceColor.needsUpdate = true;
-    }
-
-    if (aInstanceEmissive && values.emissionArray) {
-        aInstanceEmissive.array.set(values.emissionArray);
-        aInstanceEmissive.needsUpdate = true;
-    }
-
-    if (opacity1 && values.opacityArray) {
-        opacity1.array.set(values.opacityArray);
-        opacity1.needsUpdate = true;
-    }
-
-    // Update non-attribute properties
-    if (values.lifeTime) {
-        particle.lifeTime = values.lifeTime;
-    }
-    if (values.directionArray) {
-        const directionProp = particle.properties.get("direction");
-        if (directionProp && directionProp.array) {
-            directionProp.array.set(values.directionArray);
-        }
-    }
+    console.log("lifetime array")
+    console.log(values.lifeTime)
+  //  console.log(particles[index].instance)
+  //  alert("aaaaaa")
+    particles[index].instance.instanceCount =values.instanceCount
+    particles[index].instance.attributes.boxPosition.array = values.transformArrays[0]
+    particles[index].instance.attributes.rotation.array = values.transformArrays[1]
+    particles[index].instance.attributes.boxSize.array = values.transformArrays[2]
+    particles[index].instance.attributes.aInstanceColor.array = values.colorArray
+    particles[index].instance.attributes.aInstanceEmissive.array = values.emissionArray
+    particles[index].instance.attributes.opacity1.array = values.opacityArray
+    particles[index].lifeTime=values.lifeTime
+    particles[index].properties.get("direction").array=values.directionArray
+   // console.log(index + " got value")
+    particles[index].updateValues(["transform", "color", "emission","opacity"])
 }
 const workers = []
 const events = []
 const particles = []
-export function startParticleWorker(particle, workerUrl) {
+export function startParticleWorker(particle) {
     particles.push(particle)
     let index = particles.length - 1
-    workers.push(new Worker(workerUrl))
+    workers.push(new Worker("ocWorker.js"))
     events.push(event => { postMsgFunction(event.data.index, event.data.values); })
     workers[index].addEventListener("message", events[index]);
     updateWorkerValues(index)
     return (index)
 }
 export function updateWorkerValues(index) {
+    console.log("default particles values")
+    console.log(particles[index])
+
     workers[index].postMessage({
         task: "init", index:index})
     workers[index].postMessage({
         task: "updateDefaultValues", value: {
             object: {
-
+            
                 amount: particles[index].amount,
                 noise: particles[index].noise,
                 pointCloud: particles[index].pointCloud,
@@ -95,6 +58,7 @@ export function updateWorkerValues(index) {
                 burstCount: particles[index].burstCount,
                 instanceCount: particles[index].instance.instanceCount,
                 spawnOfset: particles[index].spawnOfset
+                
             }
         }
     });
@@ -114,8 +78,8 @@ export  function ParticleAutoDisposal(){
         for(let i=0;i<particles.length;i++){
             killWorker(i)
             particles[i].instance.dispose()
-        }
-
+        }  
+       
     //  event.returnValue = "pls stay"; //"Any text"; //true; //false;
       //return null; //"Any text"; //true; //false;
     });

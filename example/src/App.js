@@ -25,25 +25,25 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     particle.setSpawnOverTime(true);
     particle.setSourceAttributes("opacity", [1], false);
     particle.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
-    particle.setSourceAttributes("scale", [1, 1, 1], true, 30, 100);
+    particle.setSourceAttributes("scale", [1, 1, 1], true, 0.1, 0.1);
     particle.setSourceAttributes("rotation", [0, 0, 0], true, -45, 45);
     particle.setSourceAttributes("emission", [10, 10, 10], false, -45, 45);
-    particle.setSourceAttributes("color", [254.5, 254.0, 0], false, [50, 50, 50], [250, 250, 250]);
-    particle.setMaxLifeTime(1, true, 1.25, 3);
+    particle.setSourceAttributes("color", [0.5, 0, 0], true, [50, 50, 50], [250, 250, 250]);
+    particle.setMaxLifeTime(1, true, 1.25, 4);
     particle.setStartDirection(1, 1, 1, true, -50, 50);
-    particle.setAttributeOverLifeTime("opacity", [0], [-0.1], false);
-    particle.setAttributeOverLifeTime("rotation", [0, 0, 0], [2, 20, 2], false);
+    particle.setAttributeOverLifeTime("opacity", [0], [1], false);
+    particle.setAttributeOverLifeTime("rotation", [0, 0, 0], [1, 1, 1], false);
     particle.setAttributeOverLifeTime("force", [0, 0, 0], [0, 0, 0], false);
-    particle.setAttributeOverLifeTime("color", [0, 0, 0], [1, 0.1, 0], false, [0, 0, 3], [5, 0, 0]);
+    particle.setAttributeOverLifeTime("color", [255, 250, 255], [199, 255, 90], true, [0, 0, 3], [5, 0, 0]);
     particle.setSpawnFrequency(2);
     particle.setMaxSpawnCount(amount);
     particle.setBurstCount(amount);
     particle.setSpawnOverTime(true);
-    particle.setForce([10, 10, 10]);
+    particle.setForce([0.01, 0.01, 0.01]);
     particle.startPS();
     particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
     startParticleWorker(particle,"./ocWorker.js")
-    workerUpdateSimulation(0,0.1)
+    // workerUpdateSimulation(0,0.1)
 
     // Placeholder for childParticle initialization if needed
     // childParticle.InitializeParticles(scene, mesh, 100000);
@@ -58,20 +58,22 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
       // childParticle.dispose();
     };
   }, [scene, amount, particle, childParticle]); // Added particle and childParticle to dependencies
-  var timer
-  useFrame((state, delta) => {
-    timer=timer+1
-    if(timer>10){
-      timer=0
-      console.log(particle)
-      console.log("-----------")
-    }
-    // particle.updateSimulation(delta, true, true, true);
-    // // childParticle.updateSimulation(delta, true, true, true);
-    // particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
+  const elapsedTime = useRef(0); // Initialize elapsed time to 0
+  const intervalSeconds = 10; // Desired interval in seconds
 
- 
-    // workerUpdateSimulation(0,delta)
+  useFrame((state, delta) => {
+    elapsedTime.current += delta; // Accumulate delta time
+
+    if (elapsedTime.current >= intervalSeconds) {
+      // Call the worker function at the desired interval
+      // The original code passed delta to workerUpdateSimulation, so we continue to do so.
+      // If a fixed value is needed, this would require further clarification.
+      workerUpdateSimulation(0, delta);
+      elapsedTime.current -= intervalSeconds; // Subtract the interval to maintain accuracy
+    }
+
+    // Keep other update calls if they are intended to run every frame
+    // particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
     // childParticle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
   });
 
@@ -88,14 +90,14 @@ function Controls() {
 export default function App() {
   const particle = useRef(new Particles()).current;
   const childParticle = useRef(new Particles()).current;
-  const amount = 1000;
+  const amount = 10000;
 
   return (
     <>
       {/* Wrap Canvas in a div to control its size */}
       <div style={{ width: '100vw', height: '100vh' }}>
         <Canvas camera={{ position: [0, 0, 5] }}> {/* Added a default camera position */}
-          <color attach="background" args={['#000000']} /> {/* Set background color to black */}
+          <color attach="background" args={['#099000']} /> {/* Set background color to black */}
         {/* Test with a simple mesh to check R3F setup */}
         <mesh>
           <boxGeometry args={[1, 1, 1]} />
