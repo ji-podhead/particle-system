@@ -59,7 +59,7 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     };
   }, [scene, amount, particle, childParticle]); // Added particle and childParticle to dependencies
   const elapsedTime = useRef(0); // Initialize elapsed time to 0
-  const intervalSeconds = 10; // Desired interval in seconds
+  const intervalSeconds = 0.1; // Desired interval in seconds
 
   useFrame((state, delta) => {
     elapsedTime.current += delta; // Accumulate delta time
@@ -73,7 +73,7 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     }
 
     // Keep other update calls if they are intended to run every frame
-    // particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
+    particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
     // childParticle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
   });
 
