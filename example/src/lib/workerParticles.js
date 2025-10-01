@@ -6,7 +6,6 @@ import { updateSimulation, resetParticle as sharedResetParticle } from './_simul
 
 export class Particles {
 	constructor() {
-        // Properties will be initialized in InitializeParticles
         this.workerManager = null;
         this.simulationState = {
             waitingTime: 0,
@@ -14,100 +13,34 @@ export class Particles {
         };
 	}
 
-	addChildParticleSysthem(particleSysthem, spawnOverLifeTime, spawnFrequencyOverLifeTime) {
-		particleSysthem.instance.instanceCount=0;
-		this.childParticles.set(this.childParticles.size, {
-			ps: particleSysthem,
-			spawnOverLifeTime: spawnOverLifeTime,
-			spawnFrequencyOverLifeTime: spawnFrequencyOverLifeTime,
-			tempIndex:0
-		})
-	}
-
-	setMorphTargets(morphTargets) {
-		for (let i = 0; i < morphTargets.length; i++) {
-			this.properties.set("morphTargets", parseInt(morphTargets[i]))
-		}
-		this.properties.get("morphTargetInfluences").attribute.needsUpdate = true
-	}
+    _proxyCall(method, args) {
+        if (this.workerManager) {
+            this.workerManager.callMethod(method, args);
+        }
+    }
 
 	setMaxLifeTime(maxLifeTime,random,minRange,maxRange) {
-		const temp=this.properties.get("sourceValues").get("maxLifeTime")
-		if(typeof random !== "undefined"){
-			temp.random=random
-			temp.minRange=minRange
-			temp.maxRange=maxRange
-
-		}else{
-			temp.random=false
-		}
-		temp.values=maxLifeTime
-        if (this.workerManager) {
-            this.workerManager.callMethod('setMaxLifeTime', { maxLifeTime: temp });
-        }
+		const temp = this.properties.get("sourceValues").get("maxLifeTime") || {};
+		temp.values = [maxLifeTime];
+        temp.random = random;
+        temp.minRange = minRange;
+        temp.maxRange = maxRange;
+		this.properties.get("sourceValues").set("maxLifeTime", temp);
+        this._proxyCall('setMaxLifeTime', { maxLifeTime: temp });
 	}
 
 	setNoise(strength) {
 		this.noise = strength;
-        if (this.workerManager) {
-            this.workerManager.callMethod('setNoise', { strength });
-        }
-	}
-
-	setScale(x, y, z, index) {
-		this.properties.get("transform").array[1][index * 4] = x
-		this.properties.get("transform").array[1][(index * 4) + 1] = y
-		this.properties.get("transform").array[1][(index * 4) + 2] = z
-	}
-
-	setRotation(x, y, z, index) {
-		this.properties.get("transform").array[2][(index * 4)] = x
-		this.properties.get("transform").array[2][(index * 4) + 1] = y
-		this.properties.get("transform").array[2][(index * 4) + 2] = z
-	}
-
-	setTransform(x, y, z, index) {
-		const indexA0=index*3
-		const trans= this.properties.get("transform")
-		trans.array[0][index*3]= x
-		trans.array[1][index*3+1]= y
-		trans.array[2][index*3+2]= z
-	}
-
-	setStartDirection(x, y, z,random,minRange,maxRange){
-		const direc=this.properties.get("sourceValues").get("direction")
-		direc.values[0]=x
-		direc.values[1]=y
-		direc.values[2]=z
-		if(random==true){
-			direc.random=true
-			direc.minRange=minRange
-			direc.maxRange=maxRange
-		}
-		else{
-			direc.random=false
-		}
-	}
-
-	setDirection(x, y, z, index) {
-		this.properties.get("direction").array[(index * 3)] = x
-		this.properties.get("direction").array[(index * 3) + 1] = y
-		this.properties.get("direction").array[(index * 3) + 2] = z
-	}
-
-	getdirection(index) {
-		return ([
-			this.properties.get("direction").array[(index * 3)],
-			this.properties.get("direction").array[(index * 3) + 1],
-			this.properties.get("direction").array[(index * 3) + 2]])
+        this._proxyCall('setNoise', { strength });
 	}
 
 	setForce(force) {
-		this.force = force.values;
-		this.properties.get("sourceValues").set("force", force);
-        if (this.workerManager) {
-            this.workerManager.callMethod('setForce', { force });
-        }
+		this.force = force;
+        const sourceValues = this.properties.get("sourceValues");
+        const forceObject = sourceValues.get("force") || { values: [] };
+        forceObject.values = force;
+		sourceValues.set("force", forceObject);
+        this._proxyCall('setForce', { force: forceObject });
 	}
 
 	setBurstCount(count) {
@@ -116,16 +49,47 @@ export class Particles {
 		}else{
 			this.burstCount = count
 		}
-        if (this.workerManager) {
-            this.workerManager.callMethod('setBurstCount', { count: this.burstCount });
-        }
+        this._proxyCall('setBurstCount', { count: this.burstCount });
 	}
 
     setSpawnFrequency(freq) {
         this.spawFrequency = freq;
-        if (this.workerManager) {
-            this.workerManager.callMethod('setSpawnFrequency', { freq });
+        this._proxyCall('setSpawnFrequency', { freq });
+    }
+
+    setMaxSpawnCount(count) {
+        if (count > this.amount) {
+            this.maxSpawnCount = this.amount;
+        } else {
+            this.maxSpawnCount = count;
         }
+        this._proxyCall('setMaxSpawnCount', { count: this.maxSpawnCount });
+    }
+
+    setSpawnOverTime(value) {
+        this.spawnOverTime = value;
+        this._proxyCall('setSpawnOverTime', { value });
+    }
+
+    setSourceAttributes(attribute, values, random, minRange, maxRange) {
+        const sourceValues = this.properties.get("sourceValues");
+        const temp = sourceValues.get(attribute) || {};
+        temp.values = values;
+        temp.random = random;
+        temp.minRange = minRange;
+        temp.maxRange = maxRange;
+        sourceValues.set(attribute, temp);
+        this._proxyCall('setSourceAttributes', { attribute, data: temp });
+    }
+
+    setAttributeOverLifeTime(attribute, values, end, bezier, bezierControllPointA, bezierControllPointB) {
+        const data = { values, end, bezier, bezierControllPointA, bezierControllPointB };
+        this.attributesoverLifeTime.set(attribute, data);
+        this._proxyCall('setAttributeOverLifeTime', { attribute, data });
+    }
+
+    setStartDirection(x, y, z, random, minRange, maxRange) {
+        this.setSourceAttributes('direction', [x, y, z], random, minRange, maxRange);
     }
 
     updateValues(attributes) {
@@ -155,33 +119,37 @@ export class Particles {
         const opArr = this.properties.get("opacity").array;
 
         for (let i = 0; i < this.amount; i++) {
-            const index = i * 3;
-            opArr[i] = op.values[0]; // Corrected from index
-            for (let j = 0; j < 3; j++) {
-                collArr[index + j] = col.values[j];
-                emmArr[index + j] = emm.values[j];
+            const colorIndex = i * 3;
+            const lifeTimeIndex = i * 2;
+
+            opArr[i] = op.values[0];
+
+            collArr[colorIndex]     = col.values[0];
+            collArr[colorIndex + 1] = col.values[1];
+            collArr[colorIndex + 2] = col.values[2];
+            emmArr[colorIndex]      = emm.values[0];
+            emmArr[colorIndex + 1]  = emm.values[1];
+            emmArr[colorIndex + 2]  = emm.values[2];
+
+            if (col.random && col.minRange && col.maxRange) {
+                collArr[colorIndex]     += range(0, 1, col.minRange[0], col.maxRange[0], Math.random());
+                collArr[colorIndex + 1] += range(0, 1, col.minRange[1], col.maxRange[1], Math.random());
+                collArr[colorIndex + 2] += range(0, 1, col.minRange[2], col.maxRange[2], Math.random());
             }
-            if (col.random) {
-                collArr[index] += range(0, 1, col.minRange, col.maxRange, Math.random());
-                collArr[index + 1] += range(0, 1, col.minRange, col.maxRange, Math.random());
-                collArr[index + 2] += range(0, 1, col.minRange, col.maxRange, Math.random());
+            if (emm.random && emm.minRange && emm.maxRange) {
+                emmArr[colorIndex]      += range(0, 1, emm.minRange[0], emm.maxRange[0], Math.random());
+                emmArr[colorIndex + 1]  += range(0, 1, emm.minRange[1], emm.maxRange[1], Math.random());
+                emmArr[colorIndex + 2]  += range(0, 1, emm.minRange[2], emm.maxRange[2], Math.random());
             }
-            if (emm.random) {
-                emmArr[index] += range(0, 1, emm.minRange, emm.maxRange, Math.random());
-                emmArr[index + 1] += range(0, 1, emm.minRange, emm.maxRange, Math.random());
-                emmArr[index + 2] += range(0, 1, emm.minRange, emm.maxRange, Math.random());
-            }
-            lifeTime[i * 2] = 0;
-            lifeTime[(i * 2) + 1] = max.values[0];
+
+            lifeTime[lifeTimeIndex] = 0;
+            lifeTime[lifeTimeIndex + 1] = max.values[0];
             if (max.random) {
-                lifeTime[(i * 2) + 1] += range(0, 1, max.minRange, max.maxRange, Math.random());
+                lifeTime[lifeTimeIndex + 1] += range(0, 1, max.minRange, max.maxRange, Math.random());
             }
         }
         this.instance.instanceCount = this.burstCount;
-
-        if (this.workerManager) {
-            this.workerManager.callMethod('startPS');
-        }
+        this._proxyCall('startPS');
     }
 
 	updateSimulation(delta) {
@@ -193,97 +161,94 @@ export class Particles {
         }
     }
 
-	InitializeParticles(scene, mesh, amount, maxLifeTime, burstCount, spawnOverTime, spawnFrequency, maxSpawnCount, startPosition, startScale, startRotation,startDirection, startOpacity,startColor, startForce, startForceFieldForce, useWorker = false) {
-		this.spawnOfset=0
-		this.indexSlide=false
-		amount = typeof amount != "number" && amount < 0 ? 100 : amount
-		maxLifeTime = typeof maxLifeTime != "number" ? {values:10,random:false } : maxLifeTime
-		startPosition = typeof startPosition != "object" || startPosition == undefined ? {values:[0, 0, 0],random:false }: startPosition
-		startScale = typeof startScale != "object" ? {values:[1, 1, 1],random:false } : startScale
-		startRotation = typeof startRotation != "object" ? {values:[0, 0, 0],random:false } : startRotation
-		startColor = typeof startColor != "object" ? {values:[1, 1, 1],random:false } : startColor
-		startForce = typeof startForce != "object" ? {values:[0, 0, 0] } : startForce
-		startForceFieldForce = typeof startForceFieldForce != "object" ? {values:[0, 0, 0],random:false } : startForceFieldForce
-		spawnFrequency = typeof spawnFrequency != "number" ? 1 : spawnFrequency
-		maxSpawnCount = typeof maxSpawnCount != "number" ? 1 : maxSpawnCount
-		spawnOverTime = typeof spawnOverTime != "boolean" ? false : maxSpawnCount
-		burstCount = typeof burstCount != "number" ? 100 : (burstCount>maxSpawnCount?maxSpawnCount:burstCount)
-		startDirection = typeof startDirection != "object" ? {values:[0, 0, 0],random:false } : startDirection
-		startOpacity=typeof startOpacity!="number"?{values:[1],random:false}:startOpacity
+	InitializeParticles(scene, mesh, config) {
+        const {
+            amount = 100,
+            maxLifeTime = { values: [10], random: false },
+            burstCount,
+            spawnOverTime = true,
+            spawnFrequency = 1,
+            maxSpawnCount,
+            startPosition = { values: [0, 0, 0], random: false },
+            startScale = { values: [1, 1, 1], random: false },
+            startRotation = { values: [0, 0, 0], random: false },
+            startColor = { values: [1, 1, 1], random: false },
+            startForce = { values: [0, 0, 0] },
+            startDirection = { values: [0, 0, 0], random: false },
+            startOpacity = { values: [1], random: false },
+            useWorker = false
+        } = config;
 
-        this.childParticles = new Map()
-		this.amount = amount
-		this.noise = 0
-		this.pointCloud = []
-		this.startPositionFromgeometry = false
-		this.forcefield = []
-		this.force = startForce.values
-		this.forceFieldForce = startForceFieldForce.values
-		this.attributesoverLifeTime = new Map()
-		this.properties = new Map()
-		this.spawFrequency = 1
-		this.maxSpawnCount = maxSpawnCount
-		this.spawnOverTime = true
-		this.burstCount = burstCount
+		this.amount = amount;
+		this.noise = 0;
+		this.pointCloud = [];
+		this.startPositionFromgeometry = false;
+		this.force = startForce.values;
+		this.attributesoverLifeTime = new Map();
+		this.properties = new Map();
+		this.spawFrequency = spawnFrequency;
+		this.maxSpawnCount = maxSpawnCount ?? amount;
+		this.spawnOverTime = spawnOverTime;
+		this.burstCount = burstCount ?? Math.min(100, this.maxSpawnCount);
 
-        const geometry = mesh.geometry
-		const instancedGeometry = new THREE.InstancedBufferGeometry()
-		this.instance = instancedGeometry
-		instancedGeometry.index = geometry.index
+        const geometry = mesh.geometry;
+		const instancedGeometry = new THREE.InstancedBufferGeometry();
+		this.instance = instancedGeometry;
+		instancedGeometry.index = geometry.index;
 
-        const emissionArray = new Uint8Array(this.amount * 3)
-		const colorArray = new Uint8Array(this.amount * 3)
-		const directionArray = new Float32Array(this.amount*3)
-		const opacityArray = new Float32Array(this.amount)
-		const lifeTimeArray = new Float32Array(amount*2)
+        const emissionArray = new Uint8Array(this.amount * 3);
+		const colorArray = new Uint8Array(this.amount * 3);
+		const directionArray = new Float32Array(this.amount*3);
+		const opacityArray = new Float32Array(this.amount);
+		const lifeTimeArray = new Float32Array(amount*2);
 		const matArraySize = this.amount * 3;
 		const matrixArray = [
 			new Float32Array(matArraySize),
 			new Float32Array(matArraySize),
 			new Float32Array(matArraySize),
-		]
+		];
 
-		const emissiveAttribute = new THREE.InstancedBufferAttribute(emissionArray, 3, true)
-		const colorAttribute = new THREE.InstancedBufferAttribute(colorArray, 3, true)
-		const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1, true)
-		const boxPositionAttribute=	new THREE.InstancedBufferAttribute( matrixArray[0], 3 )
-		const boxSizeAttribute=   	new THREE.InstancedBufferAttribute( matrixArray[1], 3 )
-		const rotatioAttributen= 	new THREE.InstancedBufferAttribute( matrixArray[2], 3 )
+		const emissiveAttribute = new THREE.InstancedBufferAttribute(emissionArray, 3, true);
+		const colorAttribute = new THREE.InstancedBufferAttribute(colorArray, 3, true);
+		const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1, true);
+		const boxPositionAttribute=	new THREE.InstancedBufferAttribute( matrixArray[0], 3 );
+		const boxSizeAttribute=   	new THREE.InstancedBufferAttribute( matrixArray[1], 3 );
+		const rotatioAttributen= 	new THREE.InstancedBufferAttribute( matrixArray[2], 3 );
 
         instancedGeometry.instanceCount = 0;
-		instancedGeometry.setAttribute('aInstanceColor',colorAttribute)
-		instancedGeometry.setAttribute('aInstanceEmissive',emissiveAttribute)
-		instancedGeometry.setAttribute('opacity1',opacityAttribute)
+		instancedGeometry.setAttribute('aInstanceColor',colorAttribute);
+		instancedGeometry.setAttribute('aInstanceEmissive',emissiveAttribute);
+		instancedGeometry.setAttribute('opacity1',opacityAttribute);
 		instancedGeometry.setAttribute( 'boxPosition', boxPositionAttribute);
 		instancedGeometry.setAttribute( 'boxSize',boxSizeAttribute );
 		instancedGeometry.setAttribute( 'rotation', rotatioAttributen);
 		Object.keys(geometry.attributes).forEach(attributeName => {
 			instancedGeometry.attributes[attributeName] = geometry.attributes[attributeName]
-		})
+		});
 
-        const sourceValues = new Map()
-		sourceValues.set("transform", startPosition)
-		sourceValues.set("color", startColor)
-		sourceValues.set("emission", {values:[0,0,0],random:false,minRange:0,maxRange:0})
-		sourceValues.set("rotation", startRotation)
-		sourceValues.set("scale", startScale)
-		sourceValues.set("force", {values: startForce.values});
+        const sourceValues = new Map();
+		sourceValues.set("transform", startPosition);
+		sourceValues.set("color", startColor);
+		sourceValues.set("emission", {values:[0,0,0],random:false,minRange:0,maxRange:0});
+		sourceValues.set("rotation", startRotation);
+		sourceValues.set("scale", startScale);
+		sourceValues.set("force", startForce);
 		sourceValues.set("direction", startDirection);
-		sourceValues.set("opacity",startOpacity)
-		sourceValues.set("maxLifeTime",maxLifeTime)
-		this.properties.set("sourceValues", sourceValues)
-		this.properties.set("transform", { array: matrixArray[0], attribute: boxPositionAttribute })
-		this.properties.set("rotation", { array: matrixArray[2], attribute: rotatioAttributen})
-		this.properties.set("scale", { array: matrixArray[1], attribute: boxSizeAttribute })
-		this.properties.set("color", { array: colorArray, attribute: colorAttribute })
-		this.properties.set("emission", { array: emissionArray, attribute: emissiveAttribute })
-		this.properties.set("direction",{array:directionArray})
-		this.properties.set("lifeTime",{array:lifeTimeArray})
-		this.properties.set("opacity",{array:opacityArray,attribute:opacityAttribute})
+		sourceValues.set("opacity",startOpacity);
+		sourceValues.set("maxLifeTime",maxLifeTime);
+		this.properties.set("sourceValues", sourceValues);
+		this.properties.set("transform", { array: matrixArray[0], attribute: boxPositionAttribute });
+		this.properties.set("rotation", { array: matrixArray[2], attribute: rotatioAttributen});
+		this.properties.set("scale", { array: matrixArray[1], attribute: boxSizeAttribute });
+		this.properties.set("color", { array: colorArray, attribute: colorAttribute });
+		this.properties.set("emission", { array: emissionArray, attribute: emissiveAttribute });
+		this.properties.set("direction",{array:directionArray});
+		this.properties.set("lifeTime",{array:lifeTimeArray});
+		this.properties.set("opacity",{array:opacityArray,attribute:opacityAttribute});
 
 		const instanceMaterial = mesh.material.clone();
 		if(instanceMaterial.transparent==true){
-			instanceMaterial.depthWrite=false
+			instanceMaterial.depthWrite=false;
 		}
 
         instanceMaterial.onBeforeCompile = shader => {

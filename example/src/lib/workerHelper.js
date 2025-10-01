@@ -1,35 +1,44 @@
+function serializeState(particle) {
+    const serializableProperties = {};
+    for (const [key, value] of particle.properties.entries()) {
+        if (key === 'sourceValues') {
+            serializableProperties[key] = Object.fromEntries(value);
+        } else if (value.array) {
+            serializableProperties[key] = { array: value.array };
+        }
+    }
+
+    return {
+        amount: particle.amount,
+        noise: particle.noise,
+        pointCloud: particle.pointCloud,
+        startPositionFromgeometry: particle.startPositionFromgeometry,
+        forcefield: particle.forcefield,
+        force: particle.force,
+        forceFieldForce: particle.forceFieldForce,
+        attributesoverLifeTime: Object.fromEntries(particle.attributesoverLifeTime),
+        properties: serializableProperties,
+        spawFrequency: particle.spawFrequency,
+        maxSpawnCount: particle.maxSpawnCount,
+        spawnOverTime: particle.spawnOverTime,
+        burstCount: particle.burstCount,
+        instanceCount: particle.instance.instanceCount,
+    };
+}
+
+
 export class WorkerManager {
     constructor(particle) {
         this.particle = particle;
-        this.worker = new Worker('worker.bundle.js');
+        this.worker = new Worker('/dist/worker.bundle.js'); // Correct path to the bundled worker
         this.worker.addEventListener('message', this.handleMessage.bind(this));
 
         // Initial setup message
-        this.callMethod('init', { index: 0 }); // Assuming single particle system for now
+        this.callMethod('init', { index: 0 });
 
         // Pass all serializable properties to the worker
         this.callMethod('updateDefaultValues', {
-            object: {
-                amount: this.particle.amount,
-                noise: this.particle.noise,
-                pointCloud: this.particle.pointCloud,
-                startPositionFromgeometry: this.particle.startPositionFromgeometry,
-                forcefield: this.particle.forcefield,
-                force: this.particle.force,
-                forceFieldForce: this.particle.forceFieldForce,
-                // Convert Maps to plain objects for serialization
-                attributesoverLifeTime: Object.fromEntries(this.particle.attributesoverLifeTime),
-                properties: {
-                    ...Object.fromEntries(this.particle.properties),
-                    sourceValues: Object.fromEntries(this.particle.properties.get("sourceValues"))
-                },
-                spawFrequency: this.particle.spawFrequency,
-                maxSpawnCount: this.particle.maxSpawnCount,
-                spawnOverTime: this.particle.spawnOverTime,
-                burstCount: this.particle.burstCount,
-                instanceCount: this.particle.instance.instanceCount,
-                spawnOfset: this.particle.spawnOfset
-            }
+            object: serializeState(this.particle)
         });
     }
 
@@ -41,34 +50,28 @@ export class WorkerManager {
         instance.instanceCount = values.instanceCount;
 
         // Update buffer attributes on the main thread
-        if (values.transform) {
-            instance.attributes.boxPosition.array.set(values.transform);
-            instance.attributes.boxPosition.needsUpdate = true;
-        }
-        if (values.rotation) {
-            instance.attributes.rotation.array.set(values.rotation);
-            instance.attributes.rotation.needsUpdate = true;
-        }
-        if (values.scale) {
-            instance.attributes.boxSize.array.set(values.scale);
-            instance.attributes.boxSize.needsUpdate = true;
-        }
-        if (values.color) {
-            this.particle.properties.get('color').array.set(values.color);
-            this.particle.properties.get('color').attribute.needsUpdate = true;
-        }
-        if (values.emission) {
-            this.particle.properties.get('emission').array.set(values.emission);
-            this.particle.properties.get('emission').attribute.needsUpdate = true;
-        }
-        if (values.opacity) {
-            this.particle.properties.get('opacity').array.set(values.opacity);
-            this.particle.properties.get('opacity').attribute.needsUpdate = true;
-        }
+        const attributeMap = {
+            transform: instance.attributes.boxPosition,
+            rotation: instance.attributes.rotation,
+            scale: instance.attributes.boxSize,
+            color: this.particle.properties.get('color').attribute,
+            emission: this.particle.properties.get('emission').attribute,
+            opacity: this.particle.properties.get('opacity').attribute,
+            direction: this.particle.properties.get('direction'), // Not a buffer attribute, but needs update
+            lifeTime: this.particle.properties.get('lifeTime'), // Not a buffer attribute, but needs update
+        };
 
-        // Also update the CPU-side arrays
-        this.particle.properties.get('direction').array.set(values.direction);
-        this.particle.properties.get('lifeTime').array.set(values.lifeTime);
+        for (const key in values) {
+            if (values.hasOwnProperty(key) && attributeMap[key]) {
+                const attribute = attributeMap[key];
+                if (attribute.array) {
+                    attribute.array.set(values[key]);
+                }
+                if (attribute.needsUpdate !== undefined) {
+                    attribute.needsUpdate = true;
+                }
+            }
+        }
     }
 
     callMethod(task, value) {
@@ -84,6 +87,8 @@ export class WorkerManager {
 // This function can be used for cleanup
 export function ParticleAutoDisposal(managers) {
     window.addEventListener("beforeunload", function(event) {
-        managers.forEach(manager => manager.dispose());
+        if(Array.isArray(managers)) {
+            managers.forEach(manager => manager.dispose());
+        }
     });
 }

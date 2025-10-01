@@ -45,6 +45,26 @@ class ParticleWorkerLogic {
         this.object1.spawFrequency = data.freq;
     }
 
+    setSpawnOverTime(data) {
+        this.object1.spawnOverTime = data.value;
+    }
+
+    setSourceAttributes(data) {
+        this.object1.properties.get("sourceValues").set(data.attribute, data.data);
+    }
+
+    setAttributeOverLifeTime(data) {
+        this.object1.attributesoverLifeTime.set(data.attribute, data.data);
+    }
+
+    setMaxSpawnCount(data) {
+        this.object1.maxSpawnCount = data.count;
+    }
+
+    setMaxSpawnCount(data) {
+        this.object1.maxSpawnCount = data.count;
+    }
+
     startPS() {
         if (!this.object1 || !this.object1.properties) return;
         this.object1.instanceCount = this.object1.burstCount;

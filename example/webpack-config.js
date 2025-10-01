@@ -1,23 +1,23 @@
 import path from "path"
 
 module.exports = {
-  
- sourceType: "unambiguous",
+  sourceType: "unambiguous",
   mode: 'development',
   entry: {
     main: './src/index.js',
     worker: './src/ocWorker.js',
   },
   output: {
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'public/dist'), // Output to public/dist
     filename: '[name].bundle.js',
+    publicPath: '/dist/', // Serve from /dist/
   },
   resolve: {
     alias: { "stream": require.resolve("stream-browserify") }
- },
+  },
   devServer: {
     static: {
-      directory: path.resolve(__dirname, 'dist'),
+      directory: path.resolve(__dirname, 'public'), // Serve the public folder
     },
     port: 3000,
     open: true,

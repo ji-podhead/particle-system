@@ -10,10 +10,12 @@
     "build": "echo 'No build step configured'"
   },
   "peerDependencies": {
-    "three": "^0.146.0",
-    "gl-matrix": "^3.4.3"
+    "gl-matrix": "^3.4.3",
+    "three": "^0.146.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "html-webpack-plugin": "^5.6.4"
+  },
   "keywords": [
     "particles",
     "three.js",
