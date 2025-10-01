@@ -14,6 +14,7 @@ In this mode, the particle simulation and rendering both run on the main browser
 - **Cons:** Can block the main thread and cause UI jank or stuttering with a large number of particles.
 
 ### Multi-Threaded (Web Worker)
+![Bildschirmfoto von 2025-10-01 12-43-05](https://github.com/user-attachments/assets/016ad5ae-ceda-4255-b0d7-b13d1709716c)
 
 For heavy simulations, the system can offload all particle physics calculations to a Web Worker. The main thread is responsible only for initializing the system and updating the Three.js buffer attributes with the data calculated by the worker.
 
@@ -23,7 +24,7 @@ For heavy simulations, the system can offload all particle physics calculations 
 #### Workflow Diagram
 
 ```mermaid
-sequenceDiagram
+    sequenceDiagram
     participant Main Thread
     participant Web Worker
 
