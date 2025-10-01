@@ -1,8 +1,8 @@
 // psList.dataPS.list[0]?.updateSimulation(delta,true,true)
 // psList.dataPS.list[0]?.updateValues(["transform", "color", "emission","opacity"])
 function postMsgFunction(index, values) {
-    console.log("lifetime array")
-    console.log(values.lifeTime)
+    // console.log("lifetime array")
+    // console.log(values.lifeTime)
   //  console.log(particles[index].instance)
   //  alert("aaaaaa")
     particles[index].instance.instanceCount = values.instanceCount; // Log instanceCount
