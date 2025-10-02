@@ -11,11 +11,7 @@ function serializeState(particle) {
     return {
         amount: particle.amount,
         noise: particle.noise,
-        pointCloud: particle.pointCloud,
-        startPositionFromgeometry: particle.startPositionFromgeometry,
-        forcefield: particle.forcefield,
         force: particle.force,
-        forceFieldForce: particle.forceFieldForce,
         attributesoverLifeTime: Object.fromEntries(particle.attributesoverLifeTime),
         properties: serializableProperties,
         spawFrequency: particle.spawFrequency,
@@ -30,13 +26,10 @@ function serializeState(particle) {
 export class WorkerManager {
     constructor(particle) {
         this.particle = particle;
-        this.worker = new Worker('/dist/worker.bundle.js'); // Correct path to the bundled worker
+        this.worker = new Worker('worker.bundle.js');
         this.worker.addEventListener('message', this.handleMessage.bind(this));
 
-        // Initial setup message
         this.callMethod('init', { index: 0 });
-
-        // Pass all serializable properties to the worker
         this.callMethod('updateDefaultValues', {
             object: serializeState(this.particle)
         });
@@ -49,7 +42,6 @@ export class WorkerManager {
         const { instance } = this.particle;
         instance.instanceCount = values.instanceCount;
 
-        // Update buffer attributes on the main thread
         const attributeMap = {
             transform: instance.attributes.boxPosition,
             rotation: instance.attributes.rotation,
@@ -57,8 +49,6 @@ export class WorkerManager {
             color: this.particle.properties.get('color').attribute,
             emission: this.particle.properties.get('emission').attribute,
             opacity: this.particle.properties.get('opacity').attribute,
-            direction: this.particle.properties.get('direction'), // Not a buffer attribute, but needs update
-            lifeTime: this.particle.properties.get('lifeTime'), // Not a buffer attribute, but needs update
         };
 
         for (const key in values) {
@@ -72,6 +62,10 @@ export class WorkerManager {
                 }
             }
         }
+
+        // Also update the CPU-side arrays that are not THREE.js attributes
+        this.particle.properties.get('direction').array.set(values.direction);
+        this.particle.properties.get('lifeTime').array.set(values.lifeTime);
     }
 
     callMethod(task, value) {
@@ -84,7 +78,6 @@ export class WorkerManager {
     }
 }
 
-// This function can be used for cleanup
 export function ParticleAutoDisposal(managers) {
     window.addEventListener("beforeunload", function(event) {
         if(Array.isArray(managers)) {

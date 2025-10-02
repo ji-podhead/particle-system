@@ -1,4 +1,5 @@
 import path from "path"
+import HtmlWebpackPlugin from 'html-webpack-plugin';
 
 module.exports = {
   sourceType: "unambiguous",
@@ -8,16 +9,16 @@ module.exports = {
     worker: './src/ocWorker.js',
   },
   output: {
-    path: path.resolve(__dirname, 'public/dist'), // Output to public/dist
+    path: path.resolve(__dirname, 'dist'),
     filename: '[name].bundle.js',
-    publicPath: '/dist/', // Serve from /dist/
+    publicPath: '/',
   },
   resolve: {
     alias: { "stream": require.resolve("stream-browserify") }
   },
   devServer: {
     static: {
-      directory: path.resolve(__dirname, 'public'), // Serve the public folder
+      directory: path.resolve(__dirname, 'dist'),
     },
     port: 3000,
     open: true,
@@ -25,6 +26,13 @@ module.exports = {
     compress: true,
     historyApiFallback: true,
   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './public/index.html',
+      filename: 'index.html',
+      chunks: ['main']
+    }),
+  ],
   module: {
     rules: [
       {

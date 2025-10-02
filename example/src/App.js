@@ -16,11 +16,27 @@ function SceneInitializer({ particle, amount }) {
     mesh.translateZ(-50);
     mesh.castShadow = true;
 
-    // Initialize the particle system using the new config object API
-    particle.InitializeParticles(scene, mesh, {
-        amount: amount,
-        useWorker: true,
-    });
+    // Initialize the particle system using the original, long-argument API
+    // The final 'true' argument enables the web worker.
+    particle.InitializeParticles(
+        scene,
+        mesh,
+        amount,
+        undefined, // maxLifeTime
+        amount, // burstCount
+        true,   // spawnOverTime
+        2,      // spawnFrequency
+        amount, // maxSpawnCount
+        undefined, // startPosition
+        undefined, // startScale
+        undefined, // startRotation
+        undefined, // startDirection
+        undefined, // startOpacity
+        undefined, // startColor
+        undefined, // startForce
+        undefined, // startForceFieldForce
+        true    // useWorker
+    );
 
     // All original configuration calls are preserved
     particle.setSpawnOverTime(true);
@@ -28,7 +44,6 @@ function SceneInitializer({ particle, amount }) {
     particle.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
     particle.setSourceAttributes("scale", [1, 1, 1], true, 0.1, 0.1);
     particle.setSourceAttributes("rotation", [0, 0, 0], true, -45, 45);
-    // This second emission call seems intentional in the original code, so we preserve it.
     particle.setSourceAttributes("emission", [10, 10, 10], false, -45, 45);
     particle.setSourceAttributes("color", [0.5, 0, 0], true, [50, 50, 50], [250, 250, 250]);
     particle.setMaxLifeTime(1, true, 1.25, 4);

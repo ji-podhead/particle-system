@@ -46,19 +46,19 @@ The core of the library is the `Particles` class.
 This class, defined in `workerParticles.js`, is used to create and manage a particle system.
 
 **Initialization:**
-- `InitializeParticles(scene, mesh, config)`: Creates an `InstancedBufferGeometry` and initializes the particle system using a configuration object. The `config` object can include properties like `amount`, `maxLifeTime`, `burstCount`, `useWorker`, etc.
+- `InitializeParticles(scene, mesh, amount, maxLifeTime, ..., useWorker)`: Creates an `InstancedBufferGeometry` and initializes the particle system with a long list of optional parameters.
 
 **Configuration:**
-- All configuration is now done through setter methods on the `Particles` instance (e.g., `setForce`, `setMaxLifeTime`). These methods can be called at any time, and if the system is running in multi-threaded mode, the changes will be automatically proxied to the worker.
+- All configuration is done through setter methods on the `Particles` instance (e.g., `setForce`, `setMaxLifeTime`). These methods can be called at any time, and if the system is running in multi-threaded mode, the changes will be automatically proxied to the worker.
 
 **Updating the Simulation:**
 - `updateSimulation(delta)`: Runs the physics simulation for one frame. The API is the same for both single-threaded and multi-threaded modes.
 
 ### Multi-Threaded API
 
-The multi-threaded API is now seamless. To enable the web worker, you simply pass `useWorker: true` in the configuration object during initialization.
+The multi-threaded API is now seamless. To enable the web worker, you simply pass `true` as the final argument to `InitializeParticles`.
 
-- `config.useWorker` (boolean): When `true`, the `Particles` class automatically creates a `WorkerManager` to handle the simulation in a separate thread.
+- `useWorker` (boolean): When `true`, the `Particles` class automatically creates a `WorkerManager` to handle the simulation in a separate thread.
 - `WorkerManager`: This class is used internally by the `Particles` class to manage the worker's lifecycle and communication. You do not need to interact with it directly.
 
 ## Usage Examples
@@ -82,11 +82,9 @@ const geometry = new THREE.BoxGeometry(1, 1, 1);
 const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const mesh = new THREE.Mesh(geometry, material);
 
-// 3. Initialize the Particles using the config object
-particleSystem.InitializeParticles(scene, mesh, {
-    amount: 10000
-    // useWorker defaults to false
-});
+// 3. Initialize the Particles
+// The final `useWorker` argument defaults to false. Most other arguments are also optional.
+particleSystem.InitializeParticles(scene, mesh, 10000);
 
 // 4. Configure Particle Properties
 particleSystem.setForce([0, -9.8, 0]); // Apply gravity
@@ -127,10 +125,8 @@ const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const mesh = new THREE.Mesh(geometry, material);
 
 // 3. Initialize the Particles with the worker enabled
-particleSystem.InitializeParticles(scene, mesh, {
-    amount: 50000,
-    useWorker: true
-});
+// Pass `true` as the final argument to enable the worker.
+particleSystem.InitializeParticles(scene, mesh, 50000, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
 
 // 4. Configure Particle Properties (Same as single-threaded)
 // Any changes made here are automatically synced with the worker.
