@@ -34,13 +34,40 @@ const particles = []
 export function startParticleWorker(particle) {
     particles.push(particle)
     let index = particles.length - 1
+    particle.isWorker = true;
+    particle.workerIndex = index;
     workers.push(new Worker("ocWorker.js"))
     events.push(event => { postMsgFunction(event.data.index, event.data.values); })
     workers[index].addEventListener("message", events[index]);
-    updateWorkerValues(index)
+    updateAllWorkerValues(index)
     return (index)
 }
-export function updateWorkerValues(index) {
+
+function _sendWorkerUpdate(index, type, data) {
+    workers[index].postMessage({
+        task: "update",
+        type: type,
+        data: data
+    });
+}
+
+export function updateWorkerProperty(index, propertyName, value) {
+    _sendWorkerUpdate(index, "property", { propertyName, value });
+}
+
+export function updateWorkerSourceAttribute(index, attributeName, values) {
+    _sendWorkerUpdate(index, "sourceAttribute", { attributeName, values });
+}
+
+export function updateWorkerAttributeOverLifeTime(index, attributeName, values) {
+    _sendWorkerUpdate(index, "attributeOverLifeTime", { attributeName, values });
+}
+
+export function updateWorkerPropertiesMapEntry(index, key, value) {
+    _sendWorkerUpdate(index, "propertiesMapEntry", { key, value });
+}
+
+export function updateAllWorkerValues(index) {
     console.log("default particles values")
     console.log(particles[index])
 
@@ -49,7 +76,6 @@ export function updateWorkerValues(index) {
     workers[index].postMessage({
         task: "updateDefaultValues", value: {
             object: {
-            
                 amount: particles[index].amount,
                 noise: particles[index].noise,
                 pointCloud: particles[index].pointCloud,
@@ -65,7 +91,6 @@ export function updateWorkerValues(index) {
                 burstCount: particles[index].burstCount,
                 instanceCount: particles[index].instance.instanceCount,
                 spawnOfset: particles[index].spawnOfset
-                
             }
         }
     });

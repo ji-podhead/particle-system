@@ -213,8 +213,8 @@ function updateSimulation(object1, delta, respawn, kill) {
 self.onmessage = function (input) {
   switch (input.data.task) {
     case ("init"): {
-      if (input.data && input.data.value && input.data.value.index !== undefined) {
-        index = input.data.value.index
+      if (input.data && input.data.index !== undefined) {
+        index = input.data.index
       }
       break;
     }
@@ -223,6 +223,28 @@ self.onmessage = function (input) {
         object1 = input.data.value.object
       }
       break;
+    }
+    case ("update"): {
+        if (input.data && input.data.type && input.data.data) {
+            const { type, data } = input.data;
+            switch (type) {
+                case "property":
+                    object1[data.propertyName] = data.value;
+                    break;
+                case "sourceAttribute":
+                    object1.properties.get("sourceValues").set(data.attributeName, data.values);
+                    break;
+                case "attributeOverLifeTime":
+                    object1.attributesoverLifeTime.set(data.attributeName, data.values);
+                    break;
+                case "propertiesMapEntry":
+                    object1.properties.set(data.key, data.value);
+                    break;
+                default:
+                    console.warn(`Unknown update type: ${type}`);
+            }
+        }
+        break;
     }
     case ("updateSimulation"): {
       if (input.data && input.data.value && input.data.value.delta !== undefined) {

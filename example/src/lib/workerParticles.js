@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 import * as glMatrix from "gl-matrix";
+import {
+    updateWorkerProperty,
+    updateWorkerSourceAttribute,
+    updateWorkerAttributeOverLifeTime,
+    updateWorkerPropertiesMapEntry
+} from './workerHelper.js';
 
 export const lerp = (x, y, a) => x * (1 - a) + y * a;
 export const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
@@ -107,7 +113,7 @@ export class Particles {
 		}
 		this.properties.get("morphTargetInfluences").attribute.needsUpdate = true
 	}
-	setMaxLifeTime(maxLifeTime,random,minRange,maxRange) {
+	setMaxLifeTime(maxLifeTime,random,minRange,maxRange,updateWorker=true) {
 		const temp=this.properties.get("sourceValues").get("maxLifeTime")
 		if(typeof random !=undefined){
 			temp.random=random
@@ -118,9 +124,17 @@ export class Particles {
 			temp.random=false
 		}
 		temp.values=maxLifeTime
+		if(this.workerIndex&&updateWorker) 
+		{
+			updateWorkerSourceAttribute(this.workerIndex,"maxLifeTime", temp)
+		}
+
 	}
-	setNoise(strength) {
+	setNoise(strength, updateWorker = true) {
 		this.noise = strength
+		if (this.isWorker && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "noise", strength);
+		}
 	}
 	setScale(x, y, z, index) {
 		this.properties.get("transform").array[1][index * 4] = x
@@ -142,7 +156,7 @@ export class Particles {
 		//this.properties.get("transform").array[3][(index * 4) + 1] = y
 		//this.properties.get("transform").array[3][(index * 4) + 2] = z
 	}
-	setStartDirection(x, y, z,random,minRange,maxRange){
+	setStartDirection(x, y, z,random,minRange,maxRange, updateWorker = true){
 		direc=this.properties.get("sourceValues").get("direction")
 		direc.values[0]=x
 		direc.values[1]=y
@@ -155,6 +169,9 @@ export class Particles {
 		else{
 			direc.random=false
 		}
+		if (this.isWorker && updateWorker) {
+			updateWorkerSourceAttribute(this.workerIndex, "direction", direc);
+        }
 	}
 	setDirection(x, y, z, index) {
 		this.properties.get("direction").array[(index * 3)] = x
@@ -249,7 +266,7 @@ export class Particles {
 			this.resetParticle(i,this.attributesoverLifeTime)
 		}
 	}
-	setStartPositionFromArray(deactivate, array,random,minRange,maxRange) {
+	setStartPositionFromArray(deactivate, array,random,minRange,maxRange, updateWorker=true) {
 		if (deactivate == false) {
 			this.createPointCloud(array, false, true, true)
 			this.startPositionFromgeometry = true
@@ -266,10 +283,16 @@ export class Particles {
 			else{
 				pos.random=false
 			}
-
-			for(let i=0;i<this.amount;i++){
+			if(updateWorker && this.workerIndex){
+				updateWorkerSourceAttribute(this.workerIndex,"transform",pos)
+				// hier den worker die reset callen lassen
+			}
+			else{
+				for(let i=0;i<this.amount;i++){
 				this.resetParticle(i,this.attributesoverLifeTime)
 			}
+			}
+			
 	}
 	setForceFieldFromArray(array) {
 		this.createPointCloud(array, true, false, true)
@@ -431,7 +454,7 @@ export class Particles {
 	 * @param {*} minRange
 	 * @param {*} maxRange
 	 */
-	setSourceAttributes(attributes, values,random,minRange,maxRange) {
+	setSourceAttributes(attributes, values,random,minRange,maxRange, updateWorker = true) {
 
 		const sourceValues = this.properties.get("sourceValues")
 		if (typeof attributes != "string") {
@@ -452,6 +475,9 @@ export class Particles {
 		temp.maxRange=maxRange
 		console.log(sourceValues.get(attributes))
 		}
+		if (this.isWorker && updateWorker) {
+            updateWorkerValuesExternal(this.workerIndex, ["properties"]);
+        }
 	}
 	/**
 	 * sets the attributes of the shader. use update() to make the changes present.
@@ -486,14 +512,16 @@ export class Particles {
 	  * @param {*} index
 	 *the index of the meshPartikel ranges from 0 to instanceAmount
 	 */
-	setAttributeOverLifeTime(attribute, values,end,bezier,bezierControllPointA,bezierControllPointB) {
+	setAttributeOverLifeTime(attribute, values,end,bezier,bezierControllPointA,bezierControllPointB, updateWorker = true) {
 		if(typeof bezier == "boolean"){
 		this.attributesoverLifeTime.set(attribute, {values:values,end:end,bezier:bezier, bezierControllPointA:bezierControllPointA,bezierControllPointB:bezierControllPointB
 		})
 		}else{
 		this.attributesoverLifeTime.set(attribute, {values:values,end:end,bezier:false})
 		}
-
+		if (this.isWorker && updateWorker) {
+            updateWorkerValuesExternal(this.workerIndex, ["attributesoverLifeTime"]);
+        }
 	}
 			checkType(element) {
 	    //boxPositi
@@ -528,22 +556,19 @@ export class Particles {
 	 * pass "transform","scale", or"rotation" if you want to update the transformMatrix
 	 */
 	updateValues(attributes) {
-		//console.log(attributes)
-		//console.log(typeof attributes)
-		if (typeof attributes == "object") {
-
-			for (const attribute of attributes) {
-					try {
-						//
-						this.properties.get(attribute).attribute.needsUpdate = true
-					}
-					catch { console.warn(attribute + " is not defined, pls check your spelling, or check if the attribute exist") }
-				}
-		}
-
-
-
-	}
+        if (this.isWorker) {
+            updateWorkerValuesExternal(this.workerIndex, attributes);
+        } else {
+            if (typeof attributes == "object") {
+                for (const attribute of attributes) {
+                    try {
+                        this.properties.get(attribute).attribute.needsUpdate = true
+                    }
+                    catch { console.warn(attribute + " is not defined, pls check your spelling, or check if the attribute exist") }
+                }
+            }
+        }
+    }
 	resetTransform(index,directly) {
 
 		 pos1 = new Array(3)
