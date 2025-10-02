@@ -220,7 +220,17 @@ self.onmessage = function (input) {
     }
     case ("updateDefaultValues"): {
       if (input.data && input.data.value && input.data.value.object) {
-        object1 = input.data.value.object
+        object1 = input.data.value.object;
+        // Reconstruct Maps from arrays
+        if (object1.attributesoverLifeTime) {
+            object1.attributesoverLifeTime = new Map(object1.attributesoverLifeTime);
+        }
+        if (object1.properties) {
+            object1.properties = new Map(object1.properties);
+            if (object1.properties.has("sourceValues")) {
+                object1.properties.set("sourceValues", new Map(object1.properties.get("sourceValues")));
+            }
+        }
       }
       break;
     }
@@ -232,17 +242,59 @@ self.onmessage = function (input) {
                     object1[data.propertyName] = data.value;
                     break;
                 case "sourceAttribute":
-                    object1.properties.get("sourceValues").set(data.attributeName, data.values);
+                    if(object1.properties.get("sourceValues")) {
+                        object1.properties.get("sourceValues").set(data.attributeName, data.values);
+                    }
                     break;
                 case "attributeOverLifeTime":
-                    object1.attributesoverLifeTime.set(data.attributeName, data.values);
+                    if(object1.attributesoverLifeTime) {
+                        object1.attributesoverLifeTime.set(data.attributeName, data.values);
+                    }
                     break;
                 case "propertiesMapEntry":
-                    object1.properties.set(data.key, data.value);
+                     if(object1.properties) {
+                        object1.properties.set(data.key, data.value);
+                     }
                     break;
+                case "particleAttribute": {
+                    const { attributeName, particleIndex, value } = data;
+                    const attribute = object1.properties.get(attributeName);
+                    if (attribute && attribute.array) {
+                        // Assuming a stride of 3 for vector attributes (pos, rot, scale)
+                        const startIndex = particleIndex * 3;
+                        attribute.array[startIndex] = value[0];
+                        attribute.array[startIndex + 1] = value[1];
+                        attribute.array[startIndex + 2] = value[2];
+                    }
+                    break;
+                }
                 default:
                     console.warn(`Unknown update type: ${type}`);
             }
+        }
+        break;
+    }
+    case ("burst"): {
+        const { amount, position } = input.data.value;
+        const limit = Math.min(object1.instanceCount + amount, object1.maxSpawnCount);
+        const start = object1.instanceCount;
+        object1.instanceCount = limit;
+        for (let i = start; i < limit; i++) {
+            resetParticle(object1, i, object1.attributesoverLifeTime);
+            if (position) {
+                setTransform(object1, position[0], position[1], position[2], i);
+            }
+        }
+        break;
+    }
+    case ("resetParticle"): {
+        const { index } = input.data.value;
+        resetParticle(object1, index, object1.attributesoverLifeTime);
+        break;
+    }
+    case ("resetParticles"): {
+        for (let i = 0; i < object1.amount; i++) {
+            resetParticle(object1, i, object1.attributesoverLifeTime);
         }
         break;
     }

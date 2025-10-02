@@ -6,7 +6,7 @@ function postMsgFunction(index, values) {
   //  console.log(particles[index].instance)
   //  alert("aaaaaa")
     particles[index].instance.instanceCount = values.instanceCount; // Log instanceCount
-    console.log(`Particle ${index} instanceCount: ${values.instanceCount}`);
+    // console.log(`Particle ${index} instanceCount: ${values.instanceCount}`);
 
     if (values.transform) {
         try {
@@ -65,6 +65,34 @@ export function updateWorkerAttributeOverLifeTime(index, attributeName, values) 
 
 export function updateWorkerPropertiesMapEntry(index, key, value) {
     _sendWorkerUpdate(index, "propertiesMapEntry", { key, value });
+}
+
+export function updateWorkerParticleAttribute(index, attributeName, particleIndex, value) {
+    _sendWorkerUpdate(index, "particleAttribute", { attributeName, particleIndex, value });
+}
+
+export function workerBurst(index, amount, position) {
+    workers[index].postMessage({
+        task: 'burst',
+        value: {
+            amount: amount,
+            position: position
+        }
+    });
+}
+
+export function workerResetParticle(index, particleIndex) {
+    workers[index].postMessage({
+        task: 'resetParticle',
+        value: {
+            index: particleIndex,
+        }
+    });
+}
+
+
+export function resetWorkerParticles(index) {
+    workers[index].postMessage({ task: "resetParticles" });
 }
 
 export function updateAllWorkerValues(index) {

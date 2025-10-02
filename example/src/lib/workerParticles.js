@@ -4,7 +4,11 @@ import {
     updateWorkerProperty,
     updateWorkerSourceAttribute,
     updateWorkerAttributeOverLifeTime,
-    updateWorkerPropertiesMapEntry
+    updateWorkerPropertiesMapEntry,
+	resetWorkerParticles,
+	workerBurst,
+	workerResetParticle,
+	updateWorkerParticleAttribute
 } from './workerHelper.js';
 
 export const lerp = (x, y, a) => x * (1 - a) + y * a;
@@ -130,31 +134,49 @@ export class Particles {
 		}
 
 	}
+
+	resetParticleOnWorker(particleIndex) {
+		if (this.workerIndex) {
+			workerResetParticle(this.workerIndex, particleIndex);
+		} else {
+			this.resetParticle(particleIndex);
+		}
+	}
 	setNoise(strength, updateWorker = true) {
 		this.noise = strength
 		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "noise", strength);
 		}
 	}
-	setScale(x, y, z, index) {
-		this.properties.get("transform").array[1][index * 4] = x
-		this.properties.get("transform").array[1][(index * 4) + 1] = y
-		this.properties.get("transform").array[1][(index * 4) + 2] = z
+	setScale(x, y, z, index, updateWorker = true) {
+		const scaleArray = this.properties.get("scale").array;
+		const i = index * 3;
+		scaleArray[i] = x;
+		scaleArray[i + 1] = y;
+		scaleArray[i + 2] = z;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerParticleAttribute(this.workerIndex, "scale", index, [x, y, z]);
+		}
 	}
-	setRotation(x, y, z, index) {
-		this.properties.get("transform").array[2][(index * 4)] = x
-		this.properties.get("transform").array[2][(index * 4) + 1] = y
-		this.properties.get("transform").array[2][(index * 4) + 2] = z
+	setRotation(x, y, z, index, updateWorker = true) {
+		const rotationArray = this.properties.get("rotation").array;
+		const i = index * 3;
+		rotationArray[i] = x;
+		rotationArray[i + 1] = y;
+		rotationArray[i + 2] = z;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerParticleAttribute(this.workerIndex, "rotation", index, [x, y, z]);
+		}
 	}
-	setTransform(x, y, z, index) {
-		indexA0=index*3
-		const trans= this.properties.get("transform")
-		trans.array[0][index*3]= x
-		trans.array[1][index*3+1]= y
-		trans.array[2][index*3+2]= z
-		//this.properties.get("transform").array[3][(index * 4)] =
-		//this.properties.get("transform").array[3][(index * 4) + 1] = y
-		//this.properties.get("transform").array[3][(index * 4) + 2] = z
+	setTransform(x, y, z, index, updateWorker = true) {
+		const transformArray = this.properties.get("transform").array;
+		const i = index * 3;
+		transformArray[i] = x;
+		transformArray[i + 1] = y;
+		transformArray[i + 2] = z;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerParticleAttribute(this.workerIndex, "transform", index, [x, y, z]);
+		}
 	}
 	setStartDirection(x, y, z,random,minRange,maxRange, updateWorker = true){
 		direc=this.properties.get("sourceValues").get("direction")
@@ -187,85 +209,149 @@ export class Particles {
 			this.properties.get("direction").array[(index * 3) + 2]])
 	}
 	getScale(index) {
-		return ([
-			this.properties.get("transform").array[1][index * 4],
-			this.properties.get("transform").array[1][(index * 4) + 1],
-			this.properties.get("transform").array[1][(index * 4) + 2]])
+		const i = index * 3;
+		const scaleArray = this.properties.get("scale").array;
+		return [scaleArray[i], scaleArray[i + 1], scaleArray[i + 2]];
 	}
 	getRotation(index) {
-		return ([
-			this.properties.get("transform").array[2][index * 4],
-			this.properties.get("transform").array[2][(index * 4) + 1],
-			this.properties.get("transform").array[2][(index * 4) + 2]])
+		const i = index * 3;
+		const rotationArray = this.properties.get("rotation").array;
+		return [rotationArray[i], rotationArray[i + 1], rotationArray[i + 2]];
 	}
 	getTransform(index) {
-		return ([
-			this.properties.get("transform").array[3][index * 4],
-			this.properties.get("transform").array[3][(index * 4) + 1],
-			this.properties.get("transform").array[3][(index * 4) + 2]])
+		const i = index * 3;
+		const transformArray = this.properties.get("transform").array;
+		return [transformArray[i], transformArray[i + 1], transformArray[i + 2]];
 	}
-	setForceFieldForce(forceFieldForce) {
-		this.forceFieldForce = (forceFieldForce[0])
-		this.forceFieldForce = (forceFieldForce[1])
-		this.forceFieldForce = (forceFieldForce[2])
+	setForceFieldForce(forceFieldForce, updateWorker = true) {
+		this.forceFieldForce = forceFieldForce;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "forceFieldForce", this.forceFieldForce);
+		}
 	}
-	setForce(force) {
-		this.force = force
-		this.properties.get("sourceValues").set("force", force)
+	setForce(force, updateWorker = true) {
+		this.force = force;
+		this.properties.get("sourceValues").set("force", force);
+		if (this.workerIndex && updateWorker) {
+			updateWorkerSourceAttribute(this.workerIndex, "force", force);
+		}
 	}
-	setBurstCount(count) {
+	setBurstCount(count, updateWorker = true) {
 		if(this.maxSpawnCount<count){
 			this.burstCount=this.maxSpawnCount
 		}else{
 			this.burstCount = count
 		}
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "burstCount", this.burstCount);
+		}
 	}
 	burstParticlesManually(count) {
 		this.properties.additionalBurstCount = count
 	}
-	setSpawnOverTime(bool) {
-		this.spawnOverTime = bool
-
+	setSpawnOverTime(bool, updateWorker = true) {
+		this.spawnOverTime = bool;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "spawnOverTime", this.spawnOverTime);
+		}
 	}
-	setSpawnFrequency(freq) {
-		this.spawFrequency = freq
-
+	setSpawnFrequency(freq, updateWorker = true) {
+		this.spawFrequency = freq;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "spawFrequency", this.spawFrequency);
+		}
 	}
-	setMaxSpawnCount(count) {
+	setMaxSpawnCount(count, updateWorker = true) {
 		if (count > this.amount) {
 			count = this.amount
 		}
-		this.maxSpawnCount=count
-		this.instance.instanceCount = 0
+		this.maxSpawnCount = count;
+		this.instance.instanceCount = 0;
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "maxSpawnCount", this.maxSpawnCount);
+		}
 	}
-	setStartPositionFromGeometry(deactivate, geometry, step,random,minRange,maxRange) {
+	setStartPositionFromGeometry(deactivate, geometry, step, random, minRange, maxRange, updateWorker = true) {
+		const sourceTransform = this.properties.get("sourceValues").get("transform");
+
 		if (deactivate == false) {
-			this.createPointCloud(geometry, false, true, false, step)
-			if (this.spawnOverTime == false)
+			this.createPointCloud(geometry, false, true, false, step);
+			this.startPositionFromgeometry = true;
+			
+			if (this.spawnOverTime == false) {
 				for (let i = 0; i < this.amount; i++) {
 					this.setTransform(
 						this.pointCloud[(i * 3)],
 						this.pointCloud[(i * 3) + 1],
-						this.pointCloud[(i * 3) + 2], i)
+						this.pointCloud[(i * 3) + 2], i,
+						false // No need to update worker for each particle
+					);
 				}
-				if(random){
-					pos=this.properties.get("sourceValues").get("transform")
-					pos.random=random
-					pos.minRange=minRange
-					pos.maxRange=maxRange
-					}
-					else{
-						pos.random=false
-					}
-			this.startPositionFromgeometry = true
+			}
+			
+			if (random) {
+				sourceTransform.random = random;
+				sourceTransform.minRange = minRange;
+				sourceTransform.maxRange = maxRange;
+			} else {
+				sourceTransform.random = false;
+			}
 		} else {
-			this.startPositionFromgeometry = false
+			this.startPositionFromgeometry = false;
 		}
 
-		for(let i=0;i<this.amount;i++){
-			this.resetParticle(i,this.attributesoverLifeTime)
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "pointCloud", this.pointCloud);
+			updateWorkerProperty(this.workerIndex, "startPositionFromgeometry", this.startPositionFromgeometry);
+			updateWorkerSourceAttribute(this.workerIndex, "transform", sourceTransform);
+			resetWorkerParticles(this.workerIndex);
+		} else {
+			for (let i = 0; i < this.amount; i++) {
+				this.resetParticle(i, this.attributesoverLifeTime);
+			}
 		}
 	}
+	/**
+	 * Sets the start positions of particles by sampling points from a given geometry,
+	 * filling the shape with particles.
+	 * @param {THREE.BufferGeometry} geometry - The Three.js geometry to sample points from.
+	 * @param {number} particleCount - The number of particles to generate.
+	 * @param {boolean} [random=false] - Whether to apply random offsets to positions.
+	 * @param {number} [minRange=0] - Minimum random offset.
+	 * @param {number} [maxRange=0] - Maximum random offset.
+	 * @param {boolean} [updateWorker=true] - Whether to update the worker.
+	 */
+	setStartPositionFromGeometryFill(geometry, particleCount, random = false, minRange = 0, maxRange = 0, updateWorker = true) {
+		const points = new Float32Array(particleCount * 3);
+		const triangle = new THREE.Triangle();
+		const positions = geometry.attributes.position.array;
+
+		for (let i = 0; i < particleCount; i++) {
+			const randomIndex = Math.floor(Math.random() * (positions.length / 9)) * 9;
+			const vA = new THREE.Vector3().fromArray(positions, randomIndex);
+			const vB = new THREE.Vector3().fromArray(positions, randomIndex + 3);
+			const vC = new THREE.Vector3().fromArray(positions, randomIndex + 6);
+			triangle.set(vA, vB, vC);
+
+			const point = new THREE.Vector3();
+			let u = Math.random();
+			let v = Math.random();
+			if (u + v > 1) {
+				u = 1 - u;
+				v = 1 - v;
+			}
+			const w = 1 - u - v;
+			point.x = u * vA.x + v * vB.x + w * vC.x;
+			point.y = u * vA.y + v * vB.y + w * vC.y;
+			point.z = u * vA.z + v * vB.z + w * vC.z;
+
+			point.toArray(points, i * 3);
+		}
+
+		// Now use the generated points array to set the start positions
+		this.setStartPositionFromArray(false, points, random, minRange, maxRange, updateWorker);
+	}
+
 	setStartPositionFromArray(deactivate, array,random,minRange,maxRange, updateWorker=true) {
 		if (deactivate == false) {
 			this.createPointCloud(array, false, true, true)
@@ -274,8 +360,8 @@ export class Particles {
 			this.startPositionFromgeometry = false
 		}
 
+		pos=this.properties.get("sourceValues").get("transform")
 		if(random){
-			pos=this.properties.get("sourceValues").get("transform")
 			pos.random=random
 			pos.minRange=minRange
 			pos.maxRange=maxRange
@@ -285,7 +371,7 @@ export class Particles {
 			}
 			if(updateWorker && this.workerIndex){
 				updateWorkerSourceAttribute(this.workerIndex,"transform",pos)
-				// hier den worker die reset callen lassen
+				resetWorkerParticles(this.workerIndex)
 			}
 			else{
 				for(let i=0;i<this.amount;i++){
@@ -301,7 +387,7 @@ export class Particles {
 	setForceFieldFromGeomtry(geometry) {
 		this.createPointCloud(geometry, true, false, false)
 	}
-	setStartPosition(position,random,minRange,maxRange) {
+	setStartPosition(position,random,minRange,maxRange, updateWorker=true) {
 		this.startPositionFromgeometry = false
 		pos=this.properties.get("sourceValues").get("transform")
 		pos.values = position
@@ -312,6 +398,9 @@ export class Particles {
 		}
 		else{
 			pos.random=false
+		}
+		if (this.workerIndex && updateWorker) {
+			updateWorkerSourceAttribute(this.workerIndex, "transform", pos);
 		}
 	}
 	getPointCloudAtIndex(index) {
@@ -454,30 +543,33 @@ export class Particles {
 	 * @param {*} minRange
 	 * @param {*} maxRange
 	 */
-	setSourceAttributes(attributes, values,random,minRange,maxRange, updateWorker = true) {
-
-		const sourceValues = this.properties.get("sourceValues")
-		if (typeof attributes != "string") {
-			for (let i=0;i< attributes.length;i++) {
-				const temp =sourceValues.get(attributes[i])
-				temp.values=values[i]
-				temp.random=random[i]
-				temp.minRange=minRange[i]
-				temp.maxRange=maxRange[i]
+	setSourceAttributes(attributes, values, random, minRange, maxRange, updateWorker = true) {
+		const sourceValues = this.properties.get("sourceValues");
+		if (typeof attributes !== "string") {
+			for (let i = 0; i < attributes.length; i++) {
+				const temp = sourceValues.get(attributes[i]);
+				if (temp) {
+					temp.values = values[i];
+					temp.random = random[i];
+					temp.minRange = minRange[i];
+					temp.maxRange = maxRange[i];
+					if (this.workerIndex && updateWorker) {
+						updateWorkerSourceAttribute(this.workerIndex, attributes[i], temp);
+					}
+				}
 			}
 		} else {
-			console.log(attributes)
-			console.log(sourceValues.get(attributes))
-		const temp =	sourceValues.get(attributes)
-		temp.values=values
-		temp.random=random
-		temp.minRange=minRange
-		temp.maxRange=maxRange
-		console.log(sourceValues.get(attributes))
+			const temp = sourceValues.get(attributes);
+			if (temp) {
+				temp.values = values;
+				temp.random = random;
+				temp.minRange = minRange;
+				temp.maxRange = maxRange;
+				if (this.workerIndex && updateWorker) {
+					updateWorkerSourceAttribute(this.workerIndex, attributes, temp);
+				}
+			}
 		}
-		if (this.isWorker && updateWorker) {
-            updateWorkerValuesExternal(this.workerIndex, ["properties"]);
-        }
 	}
 	/**
 	 * sets the attributes of the shader. use update() to make the changes present.
@@ -512,16 +604,24 @@ export class Particles {
 	  * @param {*} index
 	 *the index of the meshPartikel ranges from 0 to instanceAmount
 	 */
-	setAttributeOverLifeTime(attribute, values,end,bezier,bezierControllPointA,bezierControllPointB, updateWorker = true) {
-		if(typeof bezier == "boolean"){
-		this.attributesoverLifeTime.set(attribute, {values:values,end:end,bezier:bezier, bezierControllPointA:bezierControllPointA,bezierControllPointB:bezierControllPointB
-		})
-		}else{
-		this.attributesoverLifeTime.set(attribute, {values:values,end:end,bezier:false})
+	setAttributeOverLifeTime(attribute, values, end, bezier, bezierControllPointA, bezierControllPointB, updateWorker = true) {
+		let attributeData;
+		if (typeof bezier === "boolean") {
+			attributeData = {
+				values: values,
+				end: end,
+				bezier: bezier,
+				bezierControllPointA: bezierControllPointA,
+				bezierControllPointB: bezierControllPointB
+			};
+		} else {
+			attributeData = { values: values, end: end, bezier: false };
 		}
-		if (this.isWorker && updateWorker) {
-            updateWorkerValuesExternal(this.workerIndex, ["attributesoverLifeTime"]);
-        }
+		this.attributesoverLifeTime.set(attribute, attributeData);
+
+		if (this.workerIndex && updateWorker) {
+			updateWorkerAttributeOverLifeTime(this.workerIndex, attribute, attributeData);
+		}
 	}
 			checkType(element) {
 	    //boxPositi
@@ -556,19 +656,19 @@ export class Particles {
 	 * pass "transform","scale", or"rotation" if you want to update the transformMatrix
 	 */
 	updateValues(attributes) {
-        if (this.isWorker) {
-            updateWorkerValuesExternal(this.workerIndex, attributes);
-        } else {
-            if (typeof attributes == "object") {
-                for (const attribute of attributes) {
-                    try {
-                        this.properties.get(attribute).attribute.needsUpdate = true
-                    }
-                    catch { console.warn(attribute + " is not defined, pls check your spelling, or check if the attribute exist") }
-                }
-            }
-        }
-    }
+		if (typeof attributes == "object") {
+			for (const attribute of attributes) {
+				try {
+					this.properties.get(attribute).attribute.needsUpdate = true;
+				} catch {
+					console.warn(
+						attribute +
+							" is not defined, pls check your spelling, or check if the attribute exist"
+					);
+				}
+			}
+		}
+	}
 	resetTransform(index,directly) {
 
 		 pos1 = new Array(3)
@@ -604,8 +704,11 @@ export class Particles {
 	 * @param {*} args
 	 * the arguments that will be passed intoo the constructor of the func function
 	 */
-	onParticleBirth(func,args){
-	 this.particleBirthFunction={func:func,args:args}
+	onParticleBirth(func, args, updateWorker = true) {
+		this.particleBirthFunction = { func: func, args: args };
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "hasParticleBirthFunction", !!func);
+		}
 	}
 	/**
 	 * this function will call the given function with given arguments at the end of the particles lifeSpan.
@@ -615,8 +718,11 @@ export class Particles {
 	 * @param {*} args
 	 * the arguments that will be passed intoo the constructor of the func function
 	 */
-	onParticleKill(func,args){
-		this.particleKillFunction={func:func,args:args}
+	onParticleKill(func, args, updateWorker = true) {
+		this.particleKillFunction = { func: func, args: args };
+		if (this.workerIndex && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "hasParticleKillFunction", !!func);
+		}
 	}
 		createEventFunction() {
 
@@ -651,18 +757,14 @@ export class Particles {
 //	}
 //}
 	burst(amount, position) {
-        if (this.worker) {
-            this.worker.postMessage({
-                task: 'burst',
-                value: {
-                    amount,
-                    position
-                }
-            });
-        } else {
-            console.warn("Burst called but no worker is attached to the particle system.");
-        }
-    }
+		if (this.workerIndex) {
+			workerBurst(this.workerIndex, amount, position);
+		} else {
+			// Main-thread burst logic would need to be implemented here.
+			// For now, we just warn that it's only supported in worker mode.
+			console.warn("Burst called but no worker is attached to the particle system. Bursting is only supported in worker mode.");
+		}
+	}
 	startPS(){
 	const	lifeTime=this.properties.get("lifeTime").array
 	const max=this.properties.get("sourceValues").get("maxLifeTime")
