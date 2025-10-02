@@ -22,7 +22,7 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     // Initialize the particle system
     const particleMesh = particle.InitializeParticles(scene,mesh, amount);
     // scene.add(particleMesh);
-    particle.setSpawnOverTime(true);
+    particle.setSpawnOverTime(false);
     particle.setSourceAttributes("opacity", [1], false);
     particle.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
     particle.setSourceAttributes("scale", [1, 1, 1], true, 0.1, 0.1);
@@ -32,13 +32,13 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     particle.setMaxLifeTime(1, true, 1.25, 4);
     particle.setStartDirection(1, 1, 1, true, -50, 50);
     particle.setAttributeOverLifeTime("opacity", [0], [1], false);
-    // particle.setAttributeOverLifeTime("rotation", [0, 0, 0], [1, 1, 1], false);
+    particle.setAttributeOverLifeTime("rotation", [0, 0, 0], [1, 1, 1], false);
     particle.setAttributeOverLifeTime("force", [0, 0, 0], [0, 0, 0], false);
     particle.setAttributeOverLifeTime("color", [255, 250, 255], [199, 255, 90], true, [0, 0, 3], [5, 0, 0]);
-    particle.setSpawnFrequency(4);
-    particle.setMaxSpawnCount(amount);
-    particle.setBurstCount(amount);
-    particle.setSpawnOverTime(true);
+    particle.setSpawnFrequency(5);
+    particle.setMaxSpawnCount(500);
+    particle.setBurstCount(500);
+    // particle.setSpawnOverTime(true);
     particle.setForce([0.01, 0.01, 0.01]);
     particle.startPS();
     particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);

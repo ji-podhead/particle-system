@@ -136,7 +136,7 @@ export class Particles {
 	}
 
 	resetParticleOnWorker(particleIndex) {
-		if (this.workerIndex) {
+		if (this.isWorker) {
 			workerResetParticle(this.workerIndex, particleIndex);
 		} else {
 			this.resetParticle(particleIndex);
@@ -154,7 +154,7 @@ export class Particles {
 		scaleArray[i] = x;
 		scaleArray[i + 1] = y;
 		scaleArray[i + 2] = z;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerParticleAttribute(this.workerIndex, "scale", index, [x, y, z]);
 		}
 	}
@@ -164,7 +164,7 @@ export class Particles {
 		rotationArray[i] = x;
 		rotationArray[i + 1] = y;
 		rotationArray[i + 2] = z;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerParticleAttribute(this.workerIndex, "rotation", index, [x, y, z]);
 		}
 	}
@@ -174,7 +174,7 @@ export class Particles {
 		transformArray[i] = x;
 		transformArray[i + 1] = y;
 		transformArray[i + 2] = z;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerParticleAttribute(this.workerIndex, "transform", index, [x, y, z]);
 		}
 	}
@@ -225,14 +225,14 @@ export class Particles {
 	}
 	setForceFieldForce(forceFieldForce, updateWorker = true) {
 		this.forceFieldForce = forceFieldForce;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "forceFieldForce", this.forceFieldForce);
 		}
 	}
 	setForce(force, updateWorker = true) {
 		this.force = force;
 		this.properties.get("sourceValues").set("force", force);
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerSourceAttribute(this.workerIndex, "force", force);
 		}
 	}
@@ -242,7 +242,7 @@ export class Particles {
 		}else{
 			this.burstCount = count
 		}
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "burstCount", this.burstCount);
 		}
 	}
@@ -251,13 +251,13 @@ export class Particles {
 	}
 	setSpawnOverTime(bool, updateWorker = true) {
 		this.spawnOverTime = bool;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "spawnOverTime", this.spawnOverTime);
 		}
 	}
 	setSpawnFrequency(freq, updateWorker = true) {
 		this.spawFrequency = freq;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "spawFrequency", this.spawFrequency);
 		}
 	}
@@ -267,7 +267,7 @@ export class Particles {
 		}
 		this.maxSpawnCount = count;
 		this.instance.instanceCount = 0;
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "maxSpawnCount", this.maxSpawnCount);
 		}
 	}
@@ -300,7 +300,7 @@ export class Particles {
 			this.startPositionFromgeometry = false;
 		}
 
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "pointCloud", this.pointCloud);
 			updateWorkerProperty(this.workerIndex, "startPositionFromgeometry", this.startPositionFromgeometry);
 			updateWorkerSourceAttribute(this.workerIndex, "transform", sourceTransform);
@@ -369,6 +369,7 @@ export class Particles {
 			else{
 				pos.random=false
 			}
+
 			if(updateWorker && this.workerIndex){
 				updateWorkerSourceAttribute(this.workerIndex,"transform",pos)
 				resetWorkerParticles(this.workerIndex)
@@ -399,7 +400,7 @@ export class Particles {
 		else{
 			pos.random=false
 		}
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerSourceAttribute(this.workerIndex, "transform", pos);
 		}
 	}
@@ -553,7 +554,7 @@ export class Particles {
 					temp.random = random[i];
 					temp.minRange = minRange[i];
 					temp.maxRange = maxRange[i];
-					if (this.workerIndex && updateWorker) {
+					if (this.isWorker && updateWorker) {
 						updateWorkerSourceAttribute(this.workerIndex, attributes[i], temp);
 					}
 				}
@@ -565,7 +566,7 @@ export class Particles {
 				temp.random = random;
 				temp.minRange = minRange;
 				temp.maxRange = maxRange;
-				if (this.workerIndex && updateWorker) {
+				if (this.isWorker && updateWorker) {
 					updateWorkerSourceAttribute(this.workerIndex, attributes, temp);
 				}
 			}
@@ -619,7 +620,7 @@ export class Particles {
 		}
 		this.attributesoverLifeTime.set(attribute, attributeData);
 
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerAttributeOverLifeTime(this.workerIndex, attribute, attributeData);
 		}
 	}
@@ -706,7 +707,7 @@ export class Particles {
 	 */
 	onParticleBirth(func, args, updateWorker = true) {
 		this.particleBirthFunction = { func: func, args: args };
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "hasParticleBirthFunction", !!func);
 		}
 	}
@@ -720,7 +721,7 @@ export class Particles {
 	 */
 	onParticleKill(func, args, updateWorker = true) {
 		this.particleKillFunction = { func: func, args: args };
-		if (this.workerIndex && updateWorker) {
+		if (this.isWorker && updateWorker) {
 			updateWorkerProperty(this.workerIndex, "hasParticleKillFunction", !!func);
 		}
 	}
@@ -757,7 +758,7 @@ export class Particles {
 //	}
 //}
 	burst(amount, position) {
-		if (this.workerIndex) {
+		if (this.isWorker) {
 			workerBurst(this.workerIndex, amount, position);
 		} else {
 			// Main-thread burst logic would need to be implemented here.
@@ -801,102 +802,82 @@ export class Particles {
 		}
 		  this.instance.instanceCount=this.burstCount
 	}
-	resetParticle(index, ) {
-		const attributesoverLifeTimeValues = this. attributesoverLifeTime
-		indexA0=index*3
-		indexA1=indexA0+1
-		indexA2=indexA1+1
-		//console.log("reset " + index)
-		const sourceValues = this.properties.get("sourceValues")
-			//pos1=[this.properties.get("transform").array[3][index * 4],
-			//this.properties.get("transform").array[3][(index * 4) + 1],
-			//this.properties.get("transform").array[3][(index * 4) + 2]]
-			rot=sourceValues.get("rotation")
-			scale=sourceValues.get("scale")
-			pos =sourceValues.get("transform")
-			direc=sourceValues.get("direction")
-			pos1=this.resetTransform(index,false)
-			rot1=rot.values
-			scale1=scale.values
-			for (let i=0;i<3;i++){
-				positionVector[i]=pos1[i]
-				rotationVector[i]=rot.values[i]
-				scaleVector[i]=scale.values[i]
-			}
-			if(pos.random==true){
-				positionVector[0]=+range(0,1,pos.minRange,pos.maxRange,Math.random())
-				positionVector[1]=+range(0,1,pos.minRange,pos.maxRange,Math.random())
-				positionVector[2]=+range(0,1,pos.minRange,pos.maxRange,Math.random())
+	resetParticle(index) {
+		const attributesoverLifeTimeValues = this.attributesoverLifeTime;
+		const vec3Index = index * 3;
+		const sourceValues = this.properties.get("sourceValues");
+
+		const pos = sourceValues.get("transform");
+		const rot = sourceValues.get("rotation");
+		const scale = sourceValues.get("scale");
+		const direc = sourceValues.get("direction");
+
+
+		const newPosition = this.properties.get("transform").array;
+		const rotation = this.properties.get("rotation").array;
+		const scaleTemp = this.properties.get("scale").array;
+		const direc1 = this.properties.get("direction").array;
+
+		if(direc1===undefined){ return console.error("cant reset particle cause one of the required arrays is not yet iniialized")}
+		const pos1 = this.resetTransform(index, false);
+		newPosition[vec3Index] = pos1[0];
+		newPosition[vec3Index + 1] = pos1[1];
+		newPosition[vec3Index + 2] = pos1[2];
+
+		rotation[vec3Index] = rot.values[0];
+		rotation[vec3Index + 1] = rot.values[1];
+		rotation[vec3Index + 2] = rot.values[2];
+
+		scaleTemp[vec3Index] = scale.values[0];
+		scaleTemp[vec3Index + 1] = scale.values[1];
+		scaleTemp[vec3Index + 2] = scale.values[2];
+
+		direc1[vec3Index] = direc.values[0];
+		direc1[vec3Index + 1] = direc.values[1];
+		direc1[vec3Index + 2] = direc.values[2];
+
+		if (pos.random) {
+			newPosition[vec3Index] += range(0, 1, pos.minRange, pos.maxRange, Math.random());
+			newPosition[vec3Index + 1] += range(0, 1, pos.minRange, pos.maxRange, Math.random());
+			newPosition[vec3Index + 2] += range(0, 1, pos.minRange, pos.maxRange, Math.random());
+		}
+		if (rot.random) {
+			rotation[vec3Index] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
+			rotation[vec3Index + 1] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
+			rotation[vec3Index + 2] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
+		}
+		if (scale.random) {
+			scaleTemp[vec3Index] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
+			scaleTemp[vec3Index + 1] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
+			scaleTemp[vec3Index + 2] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
+		}
+		if (direc.random) {
+			direc1[vec3Index] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
+			direc1[vec3Index + 1] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
+			direc1[vec3Index + 2] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
+		}
+
+		attributesoverLifeTimeValues.forEach((value, attribute) => {
+			if (attribute !== "transform" && attribute !== "rotation" && attribute !== "scale" && attribute !== "force" && attribute !== "direction") {
+				try {
+					const sourceAttribute = sourceValues.get(attribute);
+					const attrArray = this.properties.get(attribute).array;
+					const stride = sourceAttribute.values.length;
+					const attrIndex = index * stride;
+
+					for (let i = 0; i < stride; i++) {
+						let randomVal = 0;
+						if (sourceAttribute.random) {
+							randomVal = range(0, 1, sourceAttribute.minRange, sourceAttribute.maxRange, Math.random());
+						}
+						attrArray[attrIndex + i] = sourceAttribute.values[i] + randomVal;
+					}
+				} catch (e) {
+					// Ignore errors for attributes without a source value
 				}
-			if(rot.random==true){
-				rotationVector[0]+=range(0,1,rot.minRange,rot.maxRange,Math.random())
-				rotationVector[1]+=range(0,1,rot.minRange,rot.maxRange,Math.random())
-				rotationVector[2]+=range(0,1,rot.minRange,rot.maxRange,Math.random())
-				}
-				if(scale.random==true){
-				scaleVector[0]+=range(0,1,scale.minRange,scale.maxRange,Math.random())
-				scaleVector[1]+=range(0,1,scale.minRange,scale.maxRange,Math.random())
-				scaleVector[2]+=range(0,1,scale.minRange,scale.maxRange,Math.random())
-				}
-			const trans0 = this.properties.get("transform").array
-			const trans1 =  this.properties.get("scale").array
-			const trans2= this.properties.get("rotation").array
-	for (let i=0;i<3;i++){
-				trans0[indexA0+i]=positionVector[i]
-				trans1[indexA0+i]=scaleVector[i]
-				trans2[indexA0+i]=rotationVector[i]
 			}
-			direc1=this.properties.get("direction")
-			direc1.array[indexA0]=direc.values[0]
-			direc1.array[indexA1]=direc.values[1]
-			direc1.array[indexA2]=direc.values[2]
-			if(direc.random==true){
-				direc1.array[(indexA0)]+=range(0,1,direc.minRange,direc.maxRange,Math.random())
-				direc1.array[(indexA1)]+=range(0,1,direc.minRange,direc.maxRange,Math.random())
-				direc1.array[(indexA2)]+=range(0,1,direc.minRange,direc.maxRange,Math.random())
-			}
-
-			attributesoverLifeTimeValues.forEach((value,attribute) => {
-			//console.log("reset"  +  attribute)
-			if (attribute != "transform"&&attribute != "rotation"&&attribute != "scale"&&attribute != "force"&&attribute != "direction")
-			{
-					const sourceAttribute = sourceValues.get(attribute)
-					const attrArray = this.properties.get(attribute).array
-					randomX=0
-					randomY=0
-					randomZ=0
-					if(sourceAttribute.random){
-							randomX=range(0,1,sourceAttribute.minRange,sourceAttribute.maxRange,Math.random())
-							randomY=range(0,1,sourceAttribute.minRange,sourceAttribute.maxRange,Math.random())
-							randomZ=range(0,1,sourceAttribute.minRange,sourceAttribute.maxRange,Math.random())
-						}
-					  switch (sourceAttribute.values.length) {
-						case (3): {
-							attrArray[indexA0]=sourceAttribute.values[0]+randomX
-							attrArray[indexA1]=sourceAttribute.values[1]+randomY
-							attrArray[indexA2]=sourceAttribute.values[2]+randomZ
-
-							//console.log("attr" + attribute)
-							//console.log(sourceAttribute)
-							//console.log(attrArray[indexA0]+" " +
-							//	attrArray[indexA1]+" " +
-							//	attrArray[indexA2])
-							break;
-						}
-						case (2): {
-							attrArray[indexA0]=sourceAttribute.values[0]+randomX
-							attrArray[indexA1]=sourceAttribute.values[1]+randomY
-						}
-						case (1): {
-							attrArray[indexA0]=sourceAttribute.values[0]+randomZ
-
-						  break;
-						}
-					  }
-
-			}
-		})
-}
+		});
+	}
 	/**
 	 * this updates the physics transformation and overlifetime delta
 	 * this function requires a maxlifetime value != infinity

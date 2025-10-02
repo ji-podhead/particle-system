@@ -231,6 +231,9 @@ self.onmessage = function (input) {
                 object1.properties.set("sourceValues", new Map(object1.properties.get("sourceValues")));
             }
         }
+        postMessage({
+            task: "initialized"
+        });
       }
       break;
     }

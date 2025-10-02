@@ -32,15 +32,25 @@ const workers = []
 const events = []
 const particles = []
 export function startParticleWorker(particle) {
-    particles.push(particle)
-    let index = particles.length - 1
-    particle.isWorker = true;
-    particle.workerIndex = index;
-    workers.push(new Worker("ocWorker.js"))
-    events.push(event => { postMsgFunction(event.data.index, event.data.values); })
-    workers[index].addEventListener("message", events[index]);
-    updateAllWorkerValues(index)
-    return (index)
+    return new Promise((resolve) => {
+        particles.push(particle);
+        let index = particles.length - 1;
+        particle.isWorker = true;
+        particle.workerIndex = index;
+        workers.push(new Worker("ocWorker.js"));
+
+        const eventHandler = event => {
+            if (event.data.task === 'initialized') {
+                resolve(index);
+            } else {
+                postMsgFunction(event.data.index, event.data.values);
+            }
+        };
+
+        events.push(eventHandler);
+        workers[index].addEventListener("message", events[index]);
+        updateAllWorkerValues(index);
+    });
 }
 
 function _sendWorkerUpdate(index, type, data) {

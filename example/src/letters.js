@@ -13,74 +13,95 @@ function ParticleController({ particleSystem, letterGeometries }) {
     const { scene } = useThree();
     const currentTargetIndex = useRef(0);
     const isInitialized = useRef(false);
+    const animationState = useRef({
+        startTime: null,
+        duration: 4000, // 4 seconds, matching maxLifeTime
+        isAnimating: false
+    });
 
     useEffect(() => {
-        const geometry = new THREE.SphereGeometry(0.02, 8, 8);
-        const material = new THREE.MeshStandardMaterial({ color: '#00ff41', emissive: '#00ff41', emissiveIntensity: 2 });
-        const mesh = new THREE.Mesh(geometry, material);
+        const init = async () => {
+            const geometry = new THREE.SphereGeometry(0.02, 8, 8);
+            const material = new THREE.MeshStandardMaterial({ color: '#00ff41', emissive: '#00ff41', emissiveIntensity: 2 });
+            const mesh = new THREE.Mesh(geometry, material);
 
-        const pMesh = particleSystem.InitializeParticles(scene, mesh, PARTICLE_COUNT);
+            particleSystem.InitializeParticles(scene, mesh, 1000);
+   particleSystem.setSpawnOverTime(true);
+            particleSystem.setSpawnOverTime(false);
+            particleSystem.setSourceAttributes("opacity", [1], false);
+            particleSystem.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
+            particleSystem.setSourceAttributes("scale", [1, 1, 1], true, 0.1, 0.1);
+            particleSystem.setSourceAttributes("rotation", [0, 0, 0], true, -45, 45);
+            // particleSystem.setSourceAttributes("transform", letterGeometries[0],  letterGeometries[1], false)
+            particleSystem.setMaxSpawnCount(1000);
+            particleSystem.setBurstCount(10);
+            particleSystem.setMaxLifeTime(4, false); // Fixed lifetime for synchronized animation
+            particleSystem.setStartDirection(0, 0, 0, false, 0, 0);
+                particleSystem.setSpawnFrequency(5);
 
-        particleSystem.setSpawnOverTime(true);
-        particleSystem.setSourceAttributes("opacity", [1], false);
-        particleSystem.setSourceAttributes("emission", [255, 255, 252], true, [50, 50, 50], [250, 250, 250]);
-        particleSystem.setSourceAttributes("scale", [1, 1, 1], true, 0.1, 0.1);
-        particleSystem.setSourceAttributes("rotation", [0, 0, 0], true, -45, 45);
-        particleSystem.setSourceAttributes("emission", [10, 10, 10], false, -45, 45);
-        particleSystem.setMaxSpawnCount(PARTICLE_COUNT);
-        particleSystem.setBurstCount(PARTICLE_COUNT);
-        particleSystem.setMaxLifeTime(1, true, 1.25, 4);
-        particleSystem.setStartDirection(0, 0, 0, false, 0, 0);
-        particleSystem.setAttributeOverLifeTime("opacity", [0], [1], false);
-        particleSystem.setAttributeOverLifeTime("rotation", [0, 0, 0], [0,0,0], false);
-        particleSystem.setAttributeOverLifeTime("force", [0, 0, 0], [0, 0, 0], false);
-        particleSystem.setAttributeOverLifeTime("color", [255, 250, 255], [199, 255, 90], true, [0, 0, 3], [5, 0, 0]);
-        particleSystem.setForce([0, 0, 0]);
-
-
-        if (letterGeometries[0]) {
-            particleSystem.setStartPositionFromGeometryFill(letterGeometries[0], PARTICLE_COUNT);
+            particleSystem.setAttributeOverLifeTime("color", [255, 250, 255], [199, 255, 90], true, [0, 0, 3], [5, 0, 0]);
+            particleSystem.setForce([0, 0, 0]);
             particleSystem.startPS();
             particleSystem.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
-                    startParticleWorker(particleSystem, "./ocWorker.js");
+            particleSystem.setAttributeOverLifeTime("opacity", [0], [1], false);
+            startParticleWorker(particleSystem, "./ocWorker.js");
 
-        } else {
-            console.error("Initial letter geometry is undefined, cannot set start position.");
-            return;
-        }
+            particleSystem.setAttributeOverLifeTime("transform",  [0,0,0],  [0.1,0.1,0.1], false); // Enable transform over lifetime
+
+            if (letterGeometries.length > 1) {
+                // particleSystem.setAttributeOverLifeTime("transform", letterGeometries[0]*0.1, letterGeometries[1]*0.1, false); // Enable transform over lifetime
 
 
-        isInitialized.current = true;
+                // particleSystem.setStartPositionFromGeometryFill(letterGeometries[0], PARTICLE_COUNT);
+                // particleSystem.setEndPositionFromGeometryFill(letterGeometries[1], PARTICLE_COUNT);
+                currentTargetIndex.current = 0;
+                animationState.current.startTime = Date.now();
+                animationState.current.isAnimating = true;
+                                particleSystem.burst(PARTICLE_COUNT);
 
-        const interval = setInterval(() => {
-            if (isInitialized.current) {
-                const newIndex = (currentTargetIndex.current + 1) % letters.length;
-                currentTargetIndex.current = newIndex;
-                if (letterGeometries[newIndex]) {
-                    particleSystem.setStartPositionFromGeometryFill(letterGeometries[newIndex], PARTICLE_COUNT);
-                } else {
-                    console.warn(`Letter geometry for index ${newIndex} is undefined, skipping update.`);
-                }
+                // particleSystem.burst(PARTICLE_COUNT);
+            } else {
+                console.error("Not enough letter geometries to start animation.");
+                return;
             }
-        }, 3000);
 
-        return () => {
-            clearInterval(interval);
-            if (particleSystem.pointCloud && particleSystem.pointCloud[0]) {
-                scene.remove(particleSystem.pointCloud[0]);
-            }
-            geometry.dispose();
-            material.dispose();
-            killWorker();
+            isInitialized.current = true;
         };
-    }, [particleSystem, letterGeometries, scene]);
+
+       
+            init();
+        
+    }, []);
 
     const elapsedTime = useRef(0);
     const intervalSeconds = 0.01;
 
     useFrame((state, delta) => {
+        if (!isInitialized.current) return;
+
+        if (animationState.current.isAnimating) {
+            const now = Date.now();
+            if (now - animationState.current.startTime > animationState.current.duration) {
+                // Animation finished, set up the next one
+                const nextIndex = (currentTargetIndex.current + 1) % letterGeometries.length;
+                const nextNextIndex = (nextIndex + 1) % letterGeometries.length;
+                particleSystem.setAttributeOverLifeTime("transform", letterGeometries[nextIndex], letterGeometries[nextNextIndex], false); // Enable transform over lifetime
+
+            // particleSystem.setAttributeOverLifeTime("transform", [0,0,0], [10,10,10], false); // Enable transform over lifetime
+
+                currentTargetIndex.current = nextIndex;
+
+                // // Reset and restart particles
+                // particleSystem.reset();
+                particleSystem.burst(PARTICLE_COUNT);
+
+                animationState.current.startTime = now;
+            }
+        }
+
         elapsedTime.current += delta;
         if (elapsedTime.current >= intervalSeconds) {
+            //particleSystem.updateSimulation(delta,true,true,true)
             workerUpdateSimulation(0, delta);
             particleSystem.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
             elapsedTime.current -= intervalSeconds;
