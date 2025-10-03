@@ -2,6 +2,34 @@ const lerp = (x, y, a) => x * (1 - a) + y * a;
 const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 const invlerp = (x, y, a) => clamp((a - x) / (y - x));
 const range = (x1, y1, x2, y2, a) => lerp(x2, y2, invlerp(x1, y1, a));
+
+function bezier(out, a, b, c, d, t, vec3Index) {
+    let inverseFactor = 1 - t;
+    let inverseFactorTimesTwo = inverseFactor * inverseFactor;
+    let factorTimes2 = t * t;
+    let factor1 = inverseFactorTimesTwo * inverseFactor;
+    let factor2 = 3 * t * inverseFactorTimesTwo;
+    let factor3 = 3 * factorTimes2 * inverseFactor;
+    let factor4 = factorTimes2 * t;
+    out[vec3Index] += a[0] * factor1 + b[0] * factor2 + c[0] * factor3 + d[0] * factor4;
+    if(a.length>1){
+        out[vec3Index+1] += a[1] * factor1 + b[1] * factor2 + c[1] * factor3 + d[1] * factor4;
+        if(a.length>2){
+            out[vec3Index+2] += a[2] * factor1 + b[2] * factor2 + c[2] * factor3 + d[2] * factor4;
+        }
+    }
+}
+
+function lerpAttribute(out, a, b, t, vec3Index) {
+    out[vec3Index] += a[0] + t * (b[0] - a[0]);
+    if(a.length>1){
+        out[vec3Index+1] += a[1] + t * (b[1] - a[1]);
+        if(a.length>2){
+            out[vec3Index+2] += a[2] + t * (b[2] - a[2]);
+        }
+    }
+}
+
 let killCount = 0;
 let waitingTime = 0;
 let index = 0;
@@ -88,7 +116,7 @@ function resetParticle(object1, index, attributesoverLifeTimeValues) {
     }
 
     attributesoverLifeTimeValues.forEach((value, attribute) => {
-        if (attribute !== "transform" && attribute !== "rotation" && attribute !== "scale" && attribute !== "force" && attribute !== "direction") {
+        if (attribute !== "transform" && attribute !== "rotation" && attribute !== "scale" && attribute !== "force" && attribute !== "direction" && attribute !== "position") {
             try {
                 const sourceAttribute = sourceValues.get(attribute);
                 const attrArray = object1.properties.get(attribute).array;
@@ -146,7 +174,20 @@ function updateSimulation(object1, delta, respawn, kill) {
             const newPosition = object1.properties.get("transform").array;
             const direction = object1.properties.get("direction").array;
 
+            if (attributesoverLifeTimeValues.has("position")) {
+                const value = attributesoverLifeTimeValues.get("position");
+                newPosition[vec3Index] = 0;
+                newPosition[vec3Index + 1] = 0;
+                newPosition[vec3Index + 2] = 0;
+                if (value.bezier === true) {
+                    bezier(newPosition, value.values, value.bezierControllPointA, value.bezierControllPointB, value.end, step, vec3Index);
+                } else {
+                    lerpAttribute(newPosition, value.values, value.end, step, vec3Index);
+                }
+            }
+
             attributesoverLifeTimeValues.forEach((value, attribute) => {
+                if (attribute === "position") return;
                 if (attribute === "force") {
                     force[0] += (step * value.values[0]);
                     force[1] += (step * value.values[1]);
@@ -278,16 +319,30 @@ self.onmessage = function (input) {
         break;
     }
     case ("burst"): {
-        const { amount, position } = input.data.value;
-        const limit = Math.min(object1.instanceCount + amount, object1.maxSpawnCount);
-        const start = object1.instanceCount;
-        object1.instanceCount = limit;
-        for (let i = start; i < limit; i++) {
-            resetParticle(object1, i, object1.attributesoverLifeTime);
-            if (position) {
-                setTransform(object1, position[0], position[1], position[2], i);
-            }
-        }
+    const { amount, position } = input.data.value;
+    const lifeTime=object1.properties.get("lifeTime").array
+	const overFlow =object1.maxSpawnCount-(object1.instanceCount+amount)
+	let start
+
+	if( overFlow>=0&&(lifeTime[object1.instanceCount]==0)){
+		start=object1.instanceCount
+	}else{
+
+		start=0
+	}
+
+	for (let i=start;i<=(start+amount);i++){
+		if(overFlow>=0){
+			object1.instanceCount+=1
+		}
+		else{
+			lifeTime[i]=0
+		}
+		resetParticle(object1,i, object1.attributesoverLifeTime)
+		//setTransform(position[0],position[1],position[2],i)
+        // console.log(overFlow+"func"+i,object1.getTransform(i))
+
+		}
         break;
     }
     case ("resetParticle"): {

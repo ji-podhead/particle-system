@@ -15,6 +15,34 @@ export const lerp = (x, y, a) => x * (1 - a) + y * a;
 export const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 export const invlerp = (x, y, a) => clamp((a - x) / (y - x));
 export const range = (x1, y1, x2, y2, a) => lerp(x2, y2, invlerp(x1, y1, a));
+
+function bezier(out, a, b, c, d, t, vec3Index) {
+    let inverseFactor = 1 - t;
+    let inverseFactorTimesTwo = inverseFactor * inverseFactor;
+    let factorTimes2 = t * t;
+    let factor1 = inverseFactorTimesTwo * inverseFactor;
+    let factor2 = 3 * t * inverseFactorTimesTwo;
+    let factor3 = 3 * factorTimes2 * inverseFactor;
+    let factor4 = factorTimes2 * t;
+    out[vec3Index] += a[0] * factor1 + b[0] * factor2 + c[0] * factor3 + d[0] * factor4;
+    if(a.length>1){
+        out[vec3Index+1] += a[1] * factor1 + b[1] * factor2 + c[1] * factor3 + d[1] * factor4;
+        if(a.length>2){
+            out[vec3Index+2] += a[2] * factor1 + b[2] * factor2 + c[2] * factor3 + d[2] * factor4;
+        }
+    }
+}
+
+function lerpAttribute(out, a, b, t, vec3Index) {
+    out[vec3Index] += a[0] + t * (b[0] - a[0]);
+    if(a.length>1){
+        out[vec3Index+1] += a[1] + t * (b[1] - a[1]);
+        if(a.length>2){
+            out[vec3Index+2] += a[2] + t * (b[2] - a[2]);
+        }
+    }
+}
+
 let rot =new Array(3)
 let scale =new Array(3)
 let col =new Array(3)
@@ -321,7 +349,7 @@ export class Particles {
 	 * @param {number} [maxRange=0] - Maximum random offset.
 	 * @param {boolean} [updateWorker=true] - Whether to update the worker.
 	 */
-	setStartPositionFromGeometryFill(geometry, particleCount, random = false, minRange = 0, maxRange = 0, updateWorker = true) {
+	positionFromGeometryFill(geometry, particleCount, random = false, minRange = 0, maxRange = 0, setStartPosition=false, updateWorker = true) {
 		const points = new Float32Array(particleCount * 3);
 		const triangle = new THREE.Triangle();
 		const positions = geometry.attributes.position.array;
@@ -347,9 +375,10 @@ export class Particles {
 
 			point.toArray(points, i * 3);
 		}
+		if(setStartPosition) this.setStartPositionFromArray(false, points, random, minRange, maxRange, updateWorker);
 
+		return(points)
 		// Now use the generated points array to set the start positions
-		this.setStartPositionFromArray(false, points, random, minRange, maxRange, updateWorker);
 	}
 
 	setStartPositionFromArray(deactivate, array,random,minRange,maxRange, updateWorker=true) {
@@ -729,43 +758,50 @@ export class Particles {
 
 	}
 
-//burst(amount1,position1){
-
-//lifeTime=this.properties.get("lifeTime").array
-//	const overFlow =this.maxSpawnCount-(this.instance.instanceCount+amount1)
-//	let start
-//
-//	if( overFlow>=0&&(lifeTime[this.instance.instanceCount]==0)){
-//		start=this.instance.instanceCount
-//	}else{
-//
-//		start=0
-//	}
-//
-//	for (let i=start;i<=(start+amount1);i++){
-//		if(overFlow>=0){
-//			this.instance.instanceCount+=1
-//		}
-//		else{
-//			lifeTime[i]=0
-//		}
-//
-//		this.resetParticle(i,this.attributesoverLifeTime)
-//		this.setTransform(position1[0],position1[1],position1[2],i)
-//
-//		console.log(overFlow+"func"+i,this.getTransform(i))
-//
-//	}
-//}
-	burst(amount, position) {
+burst(amount1,position1){
 		if (this.isWorker) {
-			workerBurst(this.workerIndex, amount, position);
+			workerBurst(this.workerIndex, amount1, position1);
 		} else {
-			// Main-thread burst logic would need to be implemented here.
-			// For now, we just warn that it's only supported in worker mode.
-			console.warn("Burst called but no worker is attached to the particle system. Bursting is only supported in worker mode.");
-		}
+			
+	const lifeTime=this.properties.get("lifeTime").array
+	const overFlow =this.maxSpawnCount-(this.instance.instanceCount+amount1)
+	let start
+
+	if( overFlow>=0&&(lifeTime[this.instance.instanceCount]==0)){
+		start=this.instance.instanceCount
+	}else{
+
+		start=0
 	}
+
+	for (let i=start;i<=(start+amount1);i++){
+		if(overFlow>=0){
+			this.instance.instanceCount+=1
+		}
+		else{
+			lifeTime[i]=0
+		}
+
+		this.resetParticle(i,this.attributesoverLifeTime)
+		this.setTransform(position1[0],position1[1],position1[2],i)
+			console.warn("Burst called but no worker is attached to the particle system. Bursting is only supported in worker mode.");
+					console.log(overFlow+"func"+i,this.getTransform(i))
+
+		}
+
+
+
+	}
+}
+	// burst(amount, position) {
+	// 	if (this.isWorker) {
+	// 		workerBurst(this.workerIndex, amount, position);
+	// 	} else {
+	// 		// Main-thread burst logic would need to be implemented here.
+	// 		// For now, we just warn that it's only supported in worker mode.
+	// 		console.warn("Burst called but no worker is attached to the particle system. Bursting is only supported in worker mode.");
+	// 	}
+	// }
 	startPS(){
 	const	lifeTime=this.properties.get("lifeTime").array
 	const max=this.properties.get("sourceValues").get("maxLifeTime")
@@ -776,7 +812,6 @@ export class Particles {
 	const emmArr =this.properties.get("emission").array
 	const op=sourceValues.get("opacity")
 	const opArr =this.properties.get("opacity").array
-
 	for (let i =0;i<this.amount;i++){
 		const index=i*3
 		opArr[index]=op.values[0]
@@ -858,7 +893,7 @@ export class Particles {
 		}
 
 		attributesoverLifeTimeValues.forEach((value, attribute) => {
-			if (attribute !== "transform" && attribute !== "rotation" && attribute !== "scale" && attribute !== "force" && attribute !== "direction") {
+			if (attribute !== "transform" && attribute !== "rotation" && attribute !== "scale" && attribute !== "force" && attribute !== "direction" && attribute !== "position") {
 				try {
 					const sourceAttribute = sourceValues.get(attribute);
 					const attrArray = this.properties.get(attribute).array;
@@ -991,7 +1026,21 @@ export class Particles {
 
 	//console.log(matrix4)
 				let forceFieldForce = new Float32Array(this.forceFieldForce)
+				if (attributesoverLifeTimeValues.has("position")) {
+					const value = attributesoverLifeTimeValues.get("position");
+					const arr = this.properties.get("transform").array;
+					arr[indexA0] = 0;
+					arr[indexA1] = 0;
+					arr[indexA2] = 0;
+					if (value.bezier === true) {
+						bezier(arr, value.values, value.bezierControllPointA, value.bezierControllPointB, value.end, step, indexA0);
+					} else {
+						lerpAttribute(arr, value.values, value.end, step, indexA0);
+					}
+				}
+
 				attributesoverLifeTimeValues.forEach((value,attribute) => {
+					if (attribute === "position") return;
 					if (attribute == "forceFieldForce") {
 
 						if(value.bezier==true){
