@@ -2,7 +2,11 @@ const lerp = (x, y, a) => x * (1 - a) + y * a;
 const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
 const invlerp = (x, y, a) => clamp((a - x) / (y - x));
 const range = (x1, y1, x2, y2, a) => lerp(x2, y2, invlerp(x1, y1, a));
-
+let individualTransform = false;
+let individualRotation = false;
+let individualScale = false;
+let individualDirection = false;
+let individualForceField = false;
 function bezier(out, a, b, c, d, t, vec3Index) {
     let inverseFactor = 1 - t;
     let inverseFactorTimesTwo = inverseFactor * inverseFactor;
@@ -36,22 +40,28 @@ let index = 0;
 let object1 = {};
 let delta;
 
-function resetTransform(object1, index, directly) {
-    const pos1 = new Array(3);
-    if (object1.startPositionFromgeometry) {
+function resetTransform(object1, index) {
+    const start = object1.properties.get("sourceValues").get("transform");
+    const pos1 = new Array(3).fill(0); // Assuming transform is always 3 values (x, y, z)
+    if (individualTransform) {
         const i = index * 3;
-        pos1[0] = object1.pointCloud[i];
-        pos1[1] = object1.pointCloud[i + 1];
-        pos1[2] = object1.pointCloud[i + 2];
+        pos1[0] = start.values[i];
+        pos1[1] = start.values[i + 1];
+        pos1[2] = start.values[i + 2];
     } else {
-        const start = object1.properties.get("sourceValues").get("transform");
         pos1[0] = start.values[0];
         pos1[1] = start.values[1];
         pos1[2] = start.values[2];
     }
-    if (directly) {
-        setTransform(object1, pos1[0], pos1[1], pos1[2], index);
-    }
+    // The 'directly' variable is not defined in this scope, assuming it's meant to be handled elsewhere or removed.
+    // If 'directly' is intended to be a global or passed parameter, it needs to be defined.
+    // For now, I will remove the 'if (directly)' block as it's not defined.
+    // If it's meant to be part of the object, it should be object1.directly.
+    // Given the context, it's likely a remnant or needs to be explicitly passed.
+    // I will remove it for now to avoid a ReferenceError.
+    // if (directly) {
+    //     setTransform(object1, pos1[0], pos1[1], pos1[2], index);
+    // }
     return pos1;
 }
 
@@ -61,6 +71,30 @@ function setTransform(object1, x, y, z, index) {
     transformArray[i] = x;
     transformArray[i + 1] = y;
     transformArray[i + 2] = z;
+}
+
+function resetAttribute(object1, attributeName, index, isIndividual) {
+    const sourceAttribute = object1.properties.get("sourceValues").get(attributeName);
+    const values = new Array(sourceAttribute.values.length).fill(0);
+    if (isIndividual) {
+        const i = index * 3;
+        values[0] = sourceAttribute.values[i];
+        values[1] = sourceAttribute.values[i + 1];
+        values[2] = sourceAttribute.values[i + 2];
+    } else {
+        values[0] = sourceAttribute.values[0];
+        values[1] = sourceAttribute.values[1];
+        values[2] = sourceAttribute.values[2];
+    }
+    return values;
+}
+
+function setAttribute(object1, attributeName, x, y, z, index) {
+    const attributeArray = object1.properties.get(attributeName).array;
+    const i = index * 3;
+    attributeArray[i] = x;
+    attributeArray[i + 1] = y;
+    attributeArray[i + 2] = z;
 }
 
 function resetParticle(object1, index, attributesoverLifeTimeValues) {
@@ -73,46 +107,44 @@ function resetParticle(object1, index, attributesoverLifeTimeValues) {
     const direc = sourceValues.get("direction");
 
     const newPosition = object1.properties.get("transform").array;
-    const rotation = object1.properties.get("rotation").array;
-    const scaleTemp = object1.properties.get("scale").array;
-    const direc1 = object1.properties.get("direction").array;
+    const rotationArray = object1.properties.get("rotation").array;
+    const scaleArray = object1.properties.get("scale").array;
+    const directionArray = object1.properties.get("direction").array;
 
-    const pos1 = resetTransform(object1, index, false);
+    const pos1 = resetTransform(object1, index);
     newPosition[vec3Index] = pos1[0];
     newPosition[vec3Index + 1] = pos1[1];
     newPosition[vec3Index + 2] = pos1[2];
 
-    rotation[vec3Index] = rot.values[0];
-    rotation[vec3Index + 1] = rot.values[1];
-    rotation[vec3Index + 2] = rot.values[2];
+    const rot1 = resetAttribute(object1, "rotation", index, individualRotation);
+    setAttribute(object1, "rotation", rot1[0], rot1[1], rot1[2], index);
 
-    scaleTemp[vec3Index] = scale.values[0];
-    scaleTemp[vec3Index + 1] = scale.values[1];
-    scaleTemp[vec3Index + 2] = scale.values[2];
+    const scale1 = resetAttribute(object1, "scale", index, individualScale);
+    setAttribute(object1, "scale", scale1[0], scale1[1], scale1[2], index);
 
-    direc1[vec3Index] = direc.values[0];
-    direc1[vec3Index + 1] = direc.values[1];
-    direc1[vec3Index + 2] = direc.values[2];
+    const direc2 = resetAttribute(object1, "direction", index, individualDirection);
+    setAttribute(object1, "direction", direc2[0], direc2[1], direc2[2], index);
 
+    // Handle random values for transform, rotation, scale, direction
     if (pos.random) {
         newPosition[vec3Index] += range(0, 1, pos.minRange, pos.maxRange, Math.random());
         newPosition[vec3Index + 1] += range(0, 1, pos.minRange, pos.maxRange, Math.random());
         newPosition[vec3Index + 2] += range(0, 1, pos.minRange, pos.maxRange, Math.random());
     }
     if (rot.random) {
-        rotation[vec3Index] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
-        rotation[vec3Index + 1] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
-        rotation[vec3Index + 2] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
+        rotationArray[vec3Index] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
+        rotationArray[vec3Index + 1] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
+        rotationArray[vec3Index + 2] += range(0, 1, rot.minRange, rot.maxRange, Math.random());
     }
     if (scale.random) {
-        scaleTemp[vec3Index] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
-        scaleTemp[vec3Index + 1] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
-        scaleTemp[vec3Index + 2] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
+        scaleArray[vec3Index] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
+        scaleArray[vec3Index + 1] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
+        scaleArray[vec3Index + 2] += range(0, 1, scale.minRange, scale.maxRange, Math.random());
     }
     if (direc.random) {
-        direc1[vec3Index] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
-        direc1[vec3Index + 1] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
-        direc1[vec3Index + 2] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
+        directionArray[vec3Index] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
+        directionArray[vec3Index + 1] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
+        directionArray[vec3Index + 2] += range(0, 1, direc.minRange, direc.maxRange, Math.random());
     }
 
     attributesoverLifeTimeValues.forEach((value, attribute) => {
@@ -136,11 +168,12 @@ function resetParticle(object1, index, attributesoverLifeTimeValues) {
 }
 
 
-function updateSimulation(object1, delta, respawn, kill) {
+function updateSimulation(object1, delta, respawn=true, kill=true) {
+
     if (!object1.properties) return;
     const maxSpawnCount = typeof object1.maxSpawnCount === 'number' ? object1.maxSpawnCount : 0;
     if (maxSpawnCount === 0) return;
-
+    // console.log("updateSimulation", object1.instanceCount, object1.maxSpawnCount);
     const attributesoverLifeTimeValues = object1.attributesoverLifeTime;
     const lifeTime = object1.properties.get("lifeTime").array;
     const maxLifeTimeProps = object1.properties.get("sourceValues").get("maxLifeTime");
@@ -219,6 +252,28 @@ function updateSimulation(object1, delta, respawn, kill) {
                 newPosition[vec3Index + 2] += noise;
             }
 
+            // Apply forceFieldForce
+            const sourceForceFieldForce = object1.properties.get("sourceValues").get("forceFieldForce");
+            if (sourceForceFieldForce && sourceForceFieldForce.values && sourceForceFieldForce.values.length > 0) {
+                let forceFieldValues = [0, 0, 0];
+                if (individualForceField) {
+                    const ffIndex = index * 3;
+                    // Apply individual force field force
+                    forceFieldValues[0] = object1.forcefield[ffIndex];
+                    forceFieldValues[1] = object1.forcefield[ffIndex + 1];
+                    forceFieldValues[2] = object1.forcefield[ffIndex + 2];
+                } else {
+                    // Apply unified force field force
+                    forceFieldValues[0] = sourceForceFieldForce.values[0];
+                    forceFieldValues[1] = sourceForceFieldForce.values[1];
+                    forceFieldValues[2] = sourceForceFieldForce.values[2];
+                }
+
+                newPosition[vec3Index] += forceFieldValues[0];
+                newPosition[vec3Index + 1] += forceFieldValues[1];
+                newPosition[vec3Index + 2] += forceFieldValues[2];
+            }
+
         } else if (kill) {
             killCount++;
             const lifeTimeIndex = index * 2;
@@ -270,6 +325,16 @@ self.onmessage = function (input) {
             object1.properties = new Map(object1.properties);
             if (object1.properties.has("sourceValues")) {
                 object1.properties.set("sourceValues", new Map(object1.properties.get("sourceValues")));
+                individualTransform = object1.properties.get("sourceValues").has("transform") && (object1.properties.get("sourceValues").get("transform").values.length > 3);
+                individualRotation = object1.properties.get("sourceValues").has("rotation") && (object1.properties.get("sourceValues").get("rotation").values.length > 3);
+                individualScale = object1.properties.get("sourceValues").has("scale") && (object1.properties.get("sourceValues").get("scale").values.length > 3);
+                individualDirection = object1.properties.get("sourceValues").has("direction") && (object1.properties.get("sourceValues").get("direction").values.length > 3);
+                individualForceField = object1.properties.get("sourceValues").has("forceFieldForce") && (object1.properties.get("sourceValues").get("forceFieldForce").values.length > 3);
+                console.log("individualTransform", individualTransform);
+                console.log("individualRotation", individualRotation);
+                console.log("individualScale", individualScale);
+                console.log("individualDirection", individualDirection);
+                console.log("individualForceField", individualForceField);
             }
         }
         postMessage({
@@ -319,7 +384,8 @@ self.onmessage = function (input) {
         break;
     }
     case ("burst"): {
-    const { amount, position } = input.data.value;
+        console.log("burst", object1.instanceCount)
+    const { amount } = input.data.value;
     const lifeTime=object1.properties.get("lifeTime").array
 	const overFlow =object1.maxSpawnCount-(object1.instanceCount+amount)
 	let start
@@ -357,12 +423,10 @@ self.onmessage = function (input) {
         break;
     }
     case ("updateSimulation"): {
-      if (input.data && input.data.value && input.data.value.delta !== undefined) {
-        delta = input.data.value.delta
-        updateSimulation(object1, delta, true, true)
-      } else {
-        console.error("Received 'updateSimulation' task but input.data.value or input.data.value.delta is undefined.");
+      if (!input.data || !input.data.value || input.data.value.delta === undefined) {
+        return console.error("Received 'updateSimulation' task but input.data.value or input.data.value.delta is undefined.");
       }
+      updateSimulation(object1, input.data.value.delta, input.data.value.kill, input.data.value.respawn)
       break;
     }
   }

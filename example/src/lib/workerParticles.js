@@ -82,12 +82,10 @@ let isRotating
 let isScaling
 let isTransforming
 export class Particles {
-	constructor(amount,  vertCount,  noise, pointCloud, startPositionFromgeometry, forcefield, force, forceFieldForce, attributesoverLifeTime, properties, spawFrequency, maxSpawnCount, spawnOverTime, waitingtime, burstCount, additionalBurstCount, evenFunctions, particleEventFunctions, instance, childParticles, childSpawnTimer,particleBirthFunction,particleKillFunction,spawnOfset,indexSlide) {
+	constructor(amount,  vertCount,  noise, forcefield, force, forceFieldForce, attributesoverLifeTime, properties, spawFrequency, maxSpawnCount, spawnOverTime, waitingtime, burstCount, additionalBurstCount, evenFunctions, particleEventFunctions, instance, childParticles, childSpawnTimer,particleBirthFunction,particleKillFunction,spawnOfset,indexSlide) {
 	this.amount = amount
 	this.vertCount = vertCount
 	this.noise = noise
-	this.pointCloud = pointCloud
-	this.startPositionFromgeometry = startPositionFromgeometry
 	this.forcefield = forcefield
 	this.force = force
 	this.forceFieldForce = forceFieldForce
@@ -108,6 +106,7 @@ export class Particles {
 	this.particleBirthFunction=particleBirthFunction
 	this.spawnOfset=spawnOfset
 	this.indexSlide=indexSlide
+	this.individualForceField = false // Initialize here
 
 	}
 
@@ -177,6 +176,10 @@ export class Particles {
 		}
 	}
 	setScale(x, y, z, index, updateWorker = true) {
+		if (!this.individualScale && index !== 0) {
+			console.warn("Attempted to set individual scale for a unified scale particle system. Setting scale for index 0 instead.");
+			index = 0;
+		}
 		const scaleArray = this.properties.get("scale").array;
 		const i = index * 3;
 		scaleArray[i] = x;
@@ -187,6 +190,10 @@ export class Particles {
 		}
 	}
 	setRotation(x, y, z, index, updateWorker = true) {
+		if (!this.individualRotation && index !== 0) {
+			console.warn("Attempted to set individual rotation for a unified rotation particle system. Setting rotation for index 0 instead.");
+			index = 0;
+		}
 		const rotationArray = this.properties.get("rotation").array;
 		const i = index * 3;
 		rotationArray[i] = x;
@@ -197,6 +204,10 @@ export class Particles {
 		}
 	}
 	setTransform(x, y, z, index, updateWorker = true) {
+		if (!this.individualTransform && index !== 0) {
+			console.warn("Attempted to set individual transform for a unified transform particle system. Setting transform for index 0 instead.");
+			index = 0;
+		}
 		const transformArray = this.properties.get("transform").array;
 		const i = index * 3;
 		transformArray[i] = x;
@@ -224,6 +235,10 @@ export class Particles {
         }
 	}
 	setDirection(x, y, z, index) {
+		if (!this.individualDirection && index !== 0) {
+			console.warn("Attempted to set individual direction for a unified direction particle system. Setting direction for index 0 instead.");
+			index = 0;
+		}
 		this.properties.get("direction").array[(index * 3)] = x
 		this.properties.get("direction").array[(index * 3) + 1] = y
 		this.properties.get("direction").array[(index * 3) + 2] = z
@@ -299,38 +314,32 @@ export class Particles {
 			updateWorkerProperty(this.workerIndex, "maxSpawnCount", this.maxSpawnCount);
 		}
 	}
-	setStartPositionFromGeometry(deactivate, geometry, step, random, minRange, maxRange, updateWorker = true) {
+	setStartPositionFromGeometry(geometry, step, random, minRange, maxRange, updateWorker = true) {
 		const sourceTransform = this.properties.get("sourceValues").get("transform");
 
-		if (deactivate == false) {
-			this.createPointCloud(geometry, false, true, false, step);
-			this.startPositionFromgeometry = true;
-			
-			if (this.spawnOverTime == false) {
-				for (let i = 0; i < this.amount; i++) {
-					this.setTransform(
-						this.pointCloud[(i * 3)],
-						this.pointCloud[(i * 3) + 1],
-						this.pointCloud[(i * 3) + 2], i,
-						false // No need to update worker for each particle
-					);
-				}
+		const pc = this.createPointCloud(geometry, false, true, false, step);
+		sourceTransform.values = pc; // Set the generated points directly
+		
+		if (this.spawnOverTime == false) {
+			for (let i = 0; i < this.amount; i++) {
+				this.setTransform(
+					sourceTransform.values[(i * 3)],
+					sourceTransform.values[(i * 3) + 1],
+					sourceTransform.values[(i * 3) + 2], i,
+					false // No need to update worker for each particle
+				);
 			}
-			
-			if (random) {
-				sourceTransform.random = random;
-				sourceTransform.minRange = minRange;
-				sourceTransform.maxRange = maxRange;
-			} else {
-				sourceTransform.random = false;
-			}
+		}
+		
+		if (random) {
+			sourceTransform.random = random;
+			sourceTransform.minRange = minRange;
+			sourceTransform.maxRange = maxRange;
 		} else {
-			this.startPositionFromgeometry = false;
+			sourceTransform.random = false;
 		}
 
 		if (this.isWorker && updateWorker) {
-			updateWorkerProperty(this.workerIndex, "pointCloud", this.pointCloud);
-			updateWorkerProperty(this.workerIndex, "startPositionFromgeometry", this.startPositionFromgeometry);
 			updateWorkerSourceAttribute(this.workerIndex, "transform", sourceTransform);
 			resetWorkerParticles(this.workerIndex);
 		} else {
@@ -349,73 +358,100 @@ export class Particles {
 	 * @param {number} [maxRange=0] - Maximum random offset.
 	 * @param {boolean} [updateWorker=true] - Whether to update the worker.
 	 */
-	positionFromGeometryFill(geometry, particleCount, random = false, minRange = 0, maxRange = 0, setStartPosition=false, updateWorker = true) {
-		const points = new Float32Array(particleCount * 3);
-		const triangle = new THREE.Triangle();
-		const positions = geometry.attributes.position.array;
+	positionFromGeometryFill(geometry, particleCount, gridSize = 0.00002, random = false, minRange = 0, maxRange = 0, setStartPosition=false, updateWorker = true) {
+    const points = new Float32Array(particleCount * 3);
+    const triangle = new THREE.Triangle();
+    const positions = geometry.attributes.position.array;
+    const grid = new Map();
+    const bounds = geometry.boundingBox;
+    
+    // Verbesserte Grid-Struktur mit dynamischer Anpassung
+    const gridSizeFactor = 0.00001; // Dynamischer Faktor basierend auf Geometriegröße
+    const effectiveGridSize = gridSize * (bounds.getSize(new THREE.Vector3()).length() * gridSizeFactor);
+    
+    const minX = bounds.min.x;
+    const maxX = bounds.max.x;
+    const minY = bounds.min.y;
+    const maxY = bounds.max.y;
+    const minZ = bounds.min.z;
+    const maxZ = bounds.max.z;
+    
+    const gridStepsX = Math.ceil((maxX - minX) / effectiveGridSize);
+    const gridStepsY = Math.ceil((maxY - minY) / effectiveGridSize);
+    const gridStepsZ = Math.ceil((maxZ - minZ) / effectiveGridSize);
+    
+    let placedParticles = 0;
+    let attempts = 0; // Verhindert Endlosschleife
+    
+    while (placedParticles < particleCount && attempts < particleCount * 2) {
+        // Verbesserte Punktgenerierung mit besseren Abständen
+        const randomIndex = Math.floor(Math.random() * (positions.length / 3)) * 3;
+        const vA = new THREE.Vector3().fromArray(positions, randomIndex);
+        const vB = new THREE.Vector3().fromArray(positions, randomIndex + 3);
+        const vC = new THREE.Vector3().fromArray(positions, randomIndex + 6);
+        triangle.set(vA, vB, vC);
+        
+        let u = Math.random();
+        let v = Math.random();
+        if (u + v > 1) {
+            u = 1 - u;
+            v = 1 - v;
+        }
+        const w = 1 - u - v;
+        
+        const point = new THREE.Vector3();
+        point.x = u * vA.x + v * vB.x + w * vC.x;
+        point.y = u * vA.y + v * vB.y + w * vC.y;
+        point.z = u * vA.z + v * vB.z + w * vC.z;
+        
+        // Grid-Zelle berechnen mit verbesserter Präzision
+        const gridX = Math.floor(((point.x - minX) / effectiveGridSize) + 0.5);
+        const gridY = Math.floor(((point.y - minY) / effectiveGridSize) + 0.5);
+        const gridZ = Math.floor(((point.z - minZ) / effectiveGridSize) + 0.5);
+        const gridKey = `${gridX},${gridY},${gridZ}`;
+        
+        if (!grid.get(gridKey)) {
+            grid.set(gridKey, true);
+            point.toArray(points, placedParticles * 3);
+            placedParticles++;
+        }
+        attempts++;
+    }
+    
+    if(setStartPosition==true) this.setStartPositionFromArray(false, points, random, minRange, maxRange, updateWorker);
+    return points;
+}
 
-		for (let i = 0; i < particleCount; i++) {
-			const randomIndex = Math.floor(Math.random() * (positions.length / 9)) * 9;
-			const vA = new THREE.Vector3().fromArray(positions, randomIndex);
-			const vB = new THREE.Vector3().fromArray(positions, randomIndex + 3);
-			const vC = new THREE.Vector3().fromArray(positions, randomIndex + 6);
-			triangle.set(vA, vB, vC);
 
-			const point = new THREE.Vector3();
-			let u = Math.random();
-			let v = Math.random();
-			if (u + v > 1) {
-				u = 1 - u;
-				v = 1 - v;
-			}
-			const w = 1 - u - v;
-			point.x = u * vA.x + v * vB.x + w * vC.x;
-			point.y = u * vA.y + v * vB.y + w * vC.y;
-			point.z = u * vA.z + v * vB.z + w * vC.z;
+	setStartPositionFromArray(array,random,minRange,maxRange, updateWorker=true) {
+		const pos = this.properties.get("sourceValues").get("transform");
+		pos.values = array; // Set the array directly
 
-			point.toArray(points, i * 3);
-		}
-		if(setStartPosition) this.setStartPositionFromArray(false, points, random, minRange, maxRange, updateWorker);
-
-		return(points)
-		// Now use the generated points array to set the start positions
-	}
-
-	setStartPositionFromArray(deactivate, array,random,minRange,maxRange, updateWorker=true) {
-		if (deactivate == false) {
-			this.createPointCloud(array, false, true, true)
-			this.startPositionFromgeometry = true
-		} else {
-			this.startPositionFromgeometry = false
-		}
-
-		pos=this.properties.get("sourceValues").get("transform")
 		if(random){
 			pos.random=random
 			pos.minRange=minRange
 			pos.maxRange=maxRange
-			}
-			else{
-				pos.random=false
-			}
+		} else {
+			pos.random=false
+		}
 
-			if(updateWorker && this.workerIndex){
-				updateWorkerSourceAttribute(this.workerIndex,"transform",pos)
-				resetWorkerParticles(this.workerIndex)
-			}
-			else{
-				for(let i=0;i<this.amount;i++){
+		if(updateWorker && this.workerIndex){
+			// Removed updateWorkerProperty for pointCloud and startPositionFromgeometry
+			updateWorkerSourceAttribute(this.workerIndex,"transform",pos);
+			resetWorkerParticles(this.workerIndex);
+		} else {
+			for(let i=0;i<this.amount;i++){
 				this.resetParticle(i,this.attributesoverLifeTime)
 			}
-			}
-			
+		}
 	}
 	setForceFieldFromArray(array) {
-		this.createPointCloud(array, true, false, true)
-		this.startPositionFromgeometry = true
+		this.forcefield = this.createPointCloud(array, true, false, true)
+		this.individualForceField = this.forcefield.length > 3;
 	}
 	setForceFieldFromGeomtry(geometry) {
-		this.createPointCloud(geometry, true, false, false)
+		this.forcefield = this.createPointCloud(geometry, true, false, false)
+		this.individualForceField = this.forcefield.length > 3;
 	}
 	setStartPosition(position,random,minRange,maxRange, updateWorker=true) {
 		this.startPositionFromgeometry = false
@@ -433,18 +469,28 @@ export class Particles {
 			updateWorkerSourceAttribute(this.workerIndex, "transform", pos);
 		}
 	}
-	getPointCloudAtIndex(index) {
-		try {
-			return ([
-				this.pointCloud[index],
-				this.pointCloud[index + 1],
-				this.pointCloud[index + 2]
-			])
-		} catch {
-			return ([0, 0, 0])
-		}
-	}
-	createPointCloud(geometry, forceField, startPosition, fromArray, step) {
+	calculateParticlesPerWord(geometry, boxSize,min=100, max=5000) {
+    // Berechne die Bounding Box der Geometrie
+    const bounds = geometry.boundingBox;
+    const size = new THREE.Vector3();
+    bounds.getSize(size);
+    
+    // Berechne die effektive Fläche der Geometrie
+    const surfaceArea = size.x * size.y * size.z;
+    
+    // Berechne die Anzahl der Partikel basierend auf der Boxgröße
+    const particlesPerUnit = Math.ceil(1 / (boxSize * boxSize * boxSize));
+    const optimalParticleCount = Math.max(
+        max, // Minimale Partikelanzahl
+        Math.min(
+            min, // Maximale Partikelanzahl
+            Math.floor(surfaceArea * particlesPerUnit)
+        )
+    );
+    
+    return optimalParticleCount;
+}
+	createPointCloud(geometry,fromArray, step) {
 		let amount = this.amount
 		let height, width, depth, stepY, stepX, stepZ
 		let xMin = 100.0
@@ -530,14 +576,7 @@ export class Particles {
 			}
 		}
 
-		if (startPosition) {
-			this.pointCloud = pc
-		}
-		else if (forceField) {
-			this.forceField = pc
-		}
-
-
+		return pc
 	}
 	/**
 	 *  @returns * this function returns an array of the values if length>0
@@ -699,26 +738,26 @@ export class Particles {
 			}
 		}
 	}
-	resetTransform(index,directly) {
+	resetTransform(index, directly) {
+		const start = this.properties.get("sourceValues").get("transform");
+		const pos1 = new Array(start.values.length).fill(0);
+		const individualTransform = start.values.length > 3; // Derived from the length
 
-		 pos1 = new Array(3)
-		if (this.startPositionFromgeometry == true) {
-			pos1[0]=this.pointCloud[(index * 3)]
-			pos1[1]=this.pointCloud[(index * 3) + 1]
-			pos1[2]=this.pointCloud[(index * 3) + 2]
+		if (individualTransform) {
+			const i = index * 3;
+			pos1[0] = start.values[i]; // Access values array
+			pos1[1] = start.values[i + 1];
+			pos1[2] = start.values[i + 2];
 		} else {
-			const start=pos=this.properties.get("sourceValues").get("transform")
-				pos1[0]=start.values[0]
-				pos1[1]=start.values[1]
-				pos1[2]=start.values[ 2]
-		}
-		if(directly){
-			this.setTransform(pos1[0],pos1[2],pos1[2], index)
-		}
-		else{
-			return(pos1)
+			pos1[0] = start.values[0];
+			pos1[1] = start.values[1];
+			pos1[2] = start.values[2];
 		}
 
+		if (directly) {
+			this.setTransform(pos1[0], pos1[1], pos1[2], index);
+		}
+		return pos1;
 	}
 	getAliveCount(){
 		return(this.instances.instanceCount)
@@ -1025,7 +1064,7 @@ burst(amount1,position1){
 	//glMatrix.vec3.transformMat4(positionVector,positionVector,matrix4)
 
 	//console.log(matrix4)
-				let forceFieldForce = new Float32Array(this.forceFieldForce)
+				let forceFieldForceValues = new Float32Array(this.properties.get("sourceValues").get("forceFieldForce").values);
 				if (attributesoverLifeTimeValues.has("position")) {
 					const value = attributesoverLifeTimeValues.get("position");
 					const arr = this.properties.get("transform").array;
@@ -1044,15 +1083,15 @@ burst(amount1,position1){
 					if (attribute == "forceFieldForce") {
 
 						if(value.bezier==true){
-						forceFieldForce = [
-					(value.values[0]*forceFieldForce[0] * step),
-					(value.values[1]* forceFieldForce[1] * step),
-					(value.values[2]* forceFieldForce[2] * step)]
+						forceFieldForceValues = [
+					(value.values[0]*forceFieldForceValues[0] * step),
+					(value.values[1]* forceFieldForceValues[1] * step),
+					(value.values[2]* forceFieldForceValues[2] * step)]
 						}else{
-							forceFieldForce = [
-							value.values[0]+(forceFieldForce[0] * step),
-							value.values[1]+( forceFieldForce[1] * step),
-							value.values[2]+( forceFieldForce[2] * step)]
+							forceFieldForceValues = [
+							value.values[0]+(forceFieldForceValues[0] * step),
+							value.values[1]+( forceFieldForceValues[1] * step),
+							value.values[2]+( forceFieldForceValues[2] * step)]
 						}
 					}
 					else if (attribute == "force") {
@@ -1089,21 +1128,19 @@ burst(amount1,position1){
 					}
 				})
 				//todo: forcefield force mit kreutzprodukt berechnen
-				if (forceFieldForce[0] > 0 || forceFieldForce[1] > 0 || forceFieldForce[2] > 0) {
-					if (this.startPositionFromgeometry == true) {
-						directionVector[0] += forceFieldForce[0]
-						directionVector[1] += forceFieldForce[1]
-						directionVector[2] += forceFieldForce[2]
-						if (
-							this.instances.properties.transform.array[3][(index) * 4] != this.forceField[(index) * 3]
-							&& this.instances.properties.transform.array[3][(index) * 4 + 1] != this.forceField[(index) * 3 + 1]
-							&& this.instances.properties.transform.array[3][(index) * 4 + 2] != this.forceField[(index) * 3 + 2]) {
-							directionVector[0] += forceFieldForce
-							directionVector[1] += forceFieldForce
-							directionVector[2] += forceFieldForce
-
+				if (forceFieldForceValues[0] > 0 || forceFieldForceValues[1] > 0 || forceFieldForceValues[2] > 0) {
+					if (this.forcefield && this.forcefield.length > 0) {
+						if (this.individualForceField) {
+							const ffIndex = index * 3;
+							directionVector[0] += this.forcefield[ffIndex];
+							directionVector[1] += this.forcefield[ffIndex + 1];
+							directionVector[2] += this.forcefield[ffIndex + 2];
+						} else {
+							directionVector[0] += forceFieldForceValues[0];
+							directionVector[1] += forceFieldForceValues[1];
+							directionVector[2] += forceFieldForceValues[2];
 						}
-						isTransforming=true
+						isTransforming = true;
 					}
 				}
 				directionVector[0] +=(direction[indexA0]!==0?(force[0]*direction[indexA0]):force[0])
@@ -1241,8 +1278,8 @@ burst(amount1,position1){
 
 		this.vertCount = 4
 		this.noise = 0
-		this.pointCloud = []
-		this.startPositionFromgeometry = false
+		// this.pointCloud = [] // Removed as per user feedback
+		// this.startPositionFromgeometry = false // Removed as per user feedback
 		this.forcefield = []
 		this.force = new Array(startForce)
 		this.forceFieldForce = new Array(startForceFieldForce)
@@ -1337,7 +1374,16 @@ burst(amount1,position1){
 		this.properties.set("lifeTime",{array:lifeTimeArray})
 		this.properties.set("opacity",{array:opacityArray,attribute:opacityAttribute})
 
-
+		this.individualTransform = this.properties.get("sourceValues").has("transform") && (this.properties.get("sourceValues").get("transform").values.length > 3);
+		this.individualRotation = this.properties.get("sourceValues").has("rotation") && (this.properties.get("sourceValues").get("rotation").values.length > 3);
+		this.individualScale = this.properties.get("sourceValues").has("scale") && (this.properties.get("sourceValues").get("scale").values.length > 3);
+		this.individualDirection = this.properties.get("sourceValues").has("direction") && (this.properties.get("sourceValues").get("direction").values.length > 3);
+		console.log("individualTransform", this.individualTransform);
+		console.log("individualRotation", this.individualRotation);
+		console.log("individualScale", this.individualScale);
+		console.log("individualDirection", this.individualDirection);
+		this.individualForceField = this.properties.get("sourceValues").has("forceFieldForce") && (this.properties.get("sourceValues").get("forceFieldForce").values.length > 3);
+		console.log("individualForceField", this.individualForceField);
 
 		intersectsScene.updateMatrixWorld(true)
 		const instanceMaterial = mesh.material

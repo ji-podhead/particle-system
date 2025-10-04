@@ -139,8 +139,8 @@ export function killWorker(index) {
     workers[index].removeEventListener("error", events[index]);
     workers[index].terminate();
 }
-export function workerUpdateSimulation(index, delta) {
-    workers[index].postMessage({ task: "updateSimulation", value: { delta: delta} });
+export function workerUpdateSimulation(index, delta,respawn,kill) {
+    workers[index].postMessage({ task: "updateSimulation", value: { delta: delta, respawn:respawn,kill:kill}});
 
 }
 export  function ParticleAutoDisposal(){
