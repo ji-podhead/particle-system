@@ -34,6 +34,25 @@ function lerpAttribute(out, a, b, t, vec3Index) {
     }
 }
 
+function lerpAttribute(out, a, b, t, vec3Index) {
+    out[vec3Index] = a[0] + t * (b[0] - a[0]);
+    if(a.length>1){
+        out[vec3Index+1] = a[1] + t * (b[1] - a[1]);
+        if(a.length>2){
+            out[vec3Index+2] = a[2] + t * (b[2] - a[2]);
+        }
+    }
+}
+function lerpIndividual(out, a, b, t, vec3Index) {
+    out[vec3Index] = a[vec3Index] + t * (b[vec3Index] - a[vec3Index]);
+    if(a.length>1){
+        out[vec3Index+1] = a[vec3Index+ 1] + t * (b[vec3Index+1] - a[vec3Index+1]);
+        if(a.length>2){
+            out[vec3Index+2] = a[vec3Index+2] + t * (b[vec3Index+2] - a[vec3Index+2]);
+        }
+    }
+}
+
 let killCount = 0;
 let waitingTime = 0;
 let index = 0;
@@ -169,11 +188,11 @@ function resetParticle(object1, index, attributesoverLifeTimeValues) {
 
 
 function updateSimulation(object1, delta, respawn=true, kill=true) {
-
-    if (!object1.properties) return;
-    const maxSpawnCount = typeof object1.maxSpawnCount === 'number' ? object1.maxSpawnCount : 0;
-    if (maxSpawnCount === 0) return;
     // console.log("updateSimulation", object1.instanceCount, object1.maxSpawnCount);
+
+    if (!object1.properties) return console.warn("No properties found in object1");
+    const maxSpawnCount = typeof object1.maxSpawnCount === 'number' ? object1.maxSpawnCount : 0;
+    if (maxSpawnCount === 0) return console.warn("maxSpawnCount is zero or not a number");
     const attributesoverLifeTimeValues = object1.attributesoverLifeTime;
     const lifeTime = object1.properties.get("lifeTime").array;
     const maxLifeTimeProps = object1.properties.get("sourceValues").get("maxLifeTime");
@@ -209,37 +228,37 @@ function updateSimulation(object1, delta, respawn=true, kill=true) {
 
             if (attributesoverLifeTimeValues.has("position")) {
                 const value = attributesoverLifeTimeValues.get("position");
-                newPosition[vec3Index] = 0;
-                newPosition[vec3Index + 1] = 0;
-                newPosition[vec3Index + 2] = 0;
+                const out= newPosition 
+                // const val=[value.values[vec3Index],value.values[vec3Index+1],value.values[vec3Index+2]]
+                // const end=[value.end[vec3Index],value.end[vec3Index+1],value.end[vec3Index+2]]
                 if (value.bezier === true) {
                     bezier(newPosition, value.values, value.bezierControllPointA, value.bezierControllPointB, value.end, step, vec3Index);
                 } else {
-                    lerpAttribute(newPosition, value.values, value.end, step, vec3Index);
+                    lerpIndividual(out, value.values, value.end, step, vec3Index);
                 }
             }
 
-            attributesoverLifeTimeValues.forEach((value, attribute) => {
-                if (attribute === "position") return;
-                if (attribute === "force") {
-                    force[0] += (step * value.values[0]);
-                    force[1] += (step * value.values[1]);
-                    force[2] += (step * value.values[2]);
-                } else {
-                    try {
-                        const arr = object1.properties.get(attribute).array;
-                        const stride = value.values.length;
-                        const arrIndex = index * stride;
-                        for (let i2 = 0; i2 < stride; i2++) {
-                           if(value.end && value.end.length > i2) {
-                                arr[arrIndex + i2] += (value.end[i2] - value.values[i2]) * step;
-                           } else {
-                                arr[arrIndex + i2] += value.values[i2] * step;
-                           }
-                        }
-                    } catch {}
-                }
-            });
+            // attributesoverLifeTimeValues.forEach((value, attribute) => {
+            //     if (attribute === "position") return;
+            //     if (attribute === "force") {
+            //         force[0] += (step * value.values[0]);
+            //         force[1] += (step * value.values[1]);
+            //         force[2] += (step * value.values[2]);
+            //     } else {
+            //         try {
+            //             const arr = object1.properties.get(attribute).array;
+            //             const stride = value.values.length;
+            //             const arrIndex = index * stride;
+            //             for (let i2 = 0; i2 < stride; i2++) {
+            //                if(value.end && value.end.length > i2) {
+            //                     arr[arrIndex + i2] += (value.end[i2] - value.values[i2]) * step;
+            //                } else {
+            //                     arr[arrIndex + i2] += value.values[i2] * step;
+            //                }
+            //             }
+            //         } catch {}
+            //     }
+            // });
 
             newPosition[vec3Index] += (direction[vec3Index] !== 0 ? (force[0] * direction[vec3Index]) : force[0]);
             newPosition[vec3Index + 1] += (direction[vec3Index + 1] !== 0 ? (force[1] * direction[vec3Index + 1]) : force[1]);

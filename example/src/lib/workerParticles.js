@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as glMatrix from "gl-matrix";
+import { voxelize } from './utils/voxelize.js';
 import {
     updateWorkerProperty,
     updateWorkerSourceAttribute,
@@ -358,69 +359,21 @@ export class Particles {
 	 * @param {number} [maxRange=0] - Maximum random offset.
 	 * @param {boolean} [updateWorker=true] - Whether to update the worker.
 	 */
-	positionFromGeometryFill(geometry, particleCount, gridSize = 0.00002, random = false, minRange = 0, maxRange = 0, setStartPosition=false, updateWorker = true) {
-    const points = new Float32Array(particleCount * 3);
-    const triangle = new THREE.Triangle();
-    const positions = geometry.attributes.position.array;
-    const grid = new Map();
-    const bounds = geometry.boundingBox;
-    
-    // Verbesserte Grid-Struktur mit dynamischer Anpassung
-    const gridSizeFactor = 0.00001; // Dynamischer Faktor basierend auf Geometriegröße
-    const effectiveGridSize = gridSize * (bounds.getSize(new THREE.Vector3()).length() * gridSizeFactor);
-    
-    const minX = bounds.min.x;
-    const maxX = bounds.max.x;
-    const minY = bounds.min.y;
-    const maxY = bounds.max.y;
-    const minZ = bounds.min.z;
-    const maxZ = bounds.max.z;
-    
-    const gridStepsX = Math.ceil((maxX - minX) / effectiveGridSize);
-    const gridStepsY = Math.ceil((maxY - minY) / effectiveGridSize);
-    const gridStepsZ = Math.ceil((maxZ - minZ) / effectiveGridSize);
-    
-    let placedParticles = 0;
-    let attempts = 0; // Verhindert Endlosschleife
-    
-    while (placedParticles < particleCount && attempts < particleCount * 2) {
-        // Verbesserte Punktgenerierung mit besseren Abständen
-        const randomIndex = Math.floor(Math.random() * (positions.length / 3)) * 3;
-        const vA = new THREE.Vector3().fromArray(positions, randomIndex);
-        const vB = new THREE.Vector3().fromArray(positions, randomIndex + 3);
-        const vC = new THREE.Vector3().fromArray(positions, randomIndex + 6);
-        triangle.set(vA, vB, vC);
-        
-        let u = Math.random();
-        let v = Math.random();
-        if (u + v > 1) {
-            u = 1 - u;
-            v = 1 - v;
-        }
-        const w = 1 - u - v;
-        
-        const point = new THREE.Vector3();
-        point.x = u * vA.x + v * vB.x + w * vC.x;
-        point.y = u * vA.y + v * vB.y + w * vC.y;
-        point.z = u * vA.z + v * vB.z + w * vC.z;
-        
-        // Grid-Zelle berechnen mit verbesserter Präzision
-        const gridX = Math.floor(((point.x - minX) / effectiveGridSize) + 0.5);
-        const gridY = Math.floor(((point.y - minY) / effectiveGridSize) + 0.5);
-        const gridZ = Math.floor(((point.z - minZ) / effectiveGridSize) + 0.5);
-        const gridKey = `${gridX},${gridY},${gridZ}`;
-        
-        if (!grid.get(gridKey)) {
-            grid.set(gridKey, true);
-            point.toArray(points, placedParticles * 3);
-            placedParticles++;
-        }
-        attempts++;
-    }
-    
-    if(setStartPosition==true) this.setStartPositionFromArray(false, points, random, minRange, maxRange, updateWorker);
-    return points;
-}
+	positionFromGeometryVoxelized(geometry, boxSize, setStartPosition = false, updateWorker = true) {
+		const points = voxelize(geometry, boxSize);
+		const particleCount = points.length / 3;
+			if (particleCount > this.amount) {
+				console.warn(`Voxelization produced ${particleCount} particles, but the system is initialized with a maximum of ${this.amount}. Some voxels will be omitted.`);
+			}
+		if (setStartPosition) {
+			// Ensure the particle system can hold all the voxels.
+
+			this.setStartPositionFromArray(points, false, 0, 0, updateWorker);
+		}
+		
+		// Return both points and count for external use if needed.
+		return { points, particleCount };
+	}
 
 
 	setStartPositionFromArray(array,random,minRange,maxRange, updateWorker=true) {
@@ -469,27 +422,6 @@ export class Particles {
 			updateWorkerSourceAttribute(this.workerIndex, "transform", pos);
 		}
 	}
-	calculateParticlesPerWord(geometry, boxSize,min=100, max=5000) {
-    // Berechne die Bounding Box der Geometrie
-    const bounds = geometry.boundingBox;
-    const size = new THREE.Vector3();
-    bounds.getSize(size);
-    
-    // Berechne die effektive Fläche der Geometrie
-    const surfaceArea = size.x * size.y * size.z;
-    
-    // Berechne die Anzahl der Partikel basierend auf der Boxgröße
-    const particlesPerUnit = Math.ceil(1 / (boxSize * boxSize * boxSize));
-    const optimalParticleCount = Math.max(
-        max, // Minimale Partikelanzahl
-        Math.min(
-            min, // Maximale Partikelanzahl
-            Math.floor(surfaceArea * particlesPerUnit)
-        )
-    );
-    
-    return optimalParticleCount;
-}
 	createPointCloud(geometry,fromArray, step) {
 		let amount = this.amount
 		let height, width, depth, stepY, stepX, stepZ
@@ -760,10 +692,10 @@ export class Particles {
 		return pos1;
 	}
 	getAliveCount(){
-		return(this.instances.instanceCount)
+		return(this.instance.instanceCount)
 	}
 	setAliveCount(count){
-		this.instances.instanceCount=count
+		this.instance.instanceCount=count
 	}
 	/**
 	 * this function will call the given function with given arguments at the birth of the particle

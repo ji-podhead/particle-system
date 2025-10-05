@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useRef } from 'react';
 import LetterAnimation from "./letters"
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Environment } from '@react-three/drei';
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from 'three';
 
@@ -11,7 +11,12 @@ function Controls() {
     gl.shadowMap.enabled = true;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
   }, [gl]);
-  return <OrbitControls args={[camera, gl.domElement]} />;
+  return <OrbitControls 
+            args={[camera, gl.domElement]} 
+            maxPolarAngle={Math.PI / 2} // Prevent camera from going below the ground
+            minDistance={0.3}            // Prevent zooming in too close
+            maxDistance={1.5}            // Prevent zooming out too far
+         />;
 }
 
 export default function App() {
@@ -19,8 +24,9 @@ export default function App() {
     <>
       <div style={{ width: '100vw', height: '100vh' }}>
         <Canvas camera={{ position: [0.5, 0.5, 0.5] }} shadows>
-          <color attach="background" args={['#443333']} />
-          <fog attach="fog" args={['#443333', 1, 4]} />
+          <color attach="background" args={['#1c1c1c']} />
+          <fog attach="fog" args={['#1c1c1c', 1, 4]} />
+          <Environment preset="city" />
           
           <primitive object={new THREE.Group()}>
             <LetterAnimation />
@@ -31,7 +37,7 @@ export default function App() {
           {/* Ground Plane */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.0651, 0]} receiveShadow>
             <planeGeometry args={[8, 8]} />
-            <meshPhongMaterial color="#cbcbcb" specular="#101010" />
+            <meshPhongMaterial color="#4a4a4a" specular="#101010" />
           </mesh>
 
           {/* Lights */}
