@@ -1,5 +1,5 @@
-- [ ] Read `example/public/ocWorker.js` to understand the context of the error.
-- [ ] Analyze the `reset transform` function and the `start` object.
-- [ ] Identify the cause of the `TypeError: start.values is undefined`.
-- [ ] Implement the fix in `example/public/ocWorker.js`.
-- [ ] Verify the fix.
+- [ ] Analyze the TypeError in `particleWorkerLogic.js`
+- [ ] Read `particleWorkerLogic.js` to understand the context of the error
+- [ ] Identify the root cause of `this.onParticleBirth.func` not being a function
+- [ ] Implement a fix for the TypeError
+- [ ] Verify the fix by testing the particle system

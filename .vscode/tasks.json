@@ -1,12 +1,14 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "npm",
-			"script": "start",
-			"problemMatcher": [],
-			"label": "npm start",
-			"detail": "react-scripts start"
-		}
-	]
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "npm start",
+            "type": "shell",
+            "command": "bash -c 'source ~/.nvm/nvm.sh && nvm use 19 && npm start'",
+            "options": {
+                "cwd": "${workspaceFolder}/example"
+            },
+            "problemMatcher": []
+        }
+    ]
 }

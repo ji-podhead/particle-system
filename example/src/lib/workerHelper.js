@@ -8,6 +8,10 @@ function postMsgFunction(index, values) {
     particles[index].instance.instanceCount = values.instanceCount; // Log instanceCount
     // console.log(`Particle ${index} instanceCount: ${values.instanceCount}`);
 
+    if (values.lifeTimes) {
+        particles[index].properties.get("lifeTime").array.set(values.lifeTimes);
+    }
+
     if (values.transform) {
         try {
             particles[index].instance.attributes.boxPosition.array = values.transform;
@@ -31,13 +35,13 @@ function postMsgFunction(index, values) {
 const workers = []
 const events = []
 const particles = []
-export function startParticleWorker(particle) {
+export function startParticleWorker(particle, worker, config = {}) {
     return new Promise((resolve) => {
         particles.push(particle);
         let index = particles.length - 1;
         particle.isWorker = true;
         particle.workerIndex = index;
-        workers.push(new Worker("ocWorker.js"));
+        workers.push(new Worker(worker));
 
         const eventHandler = event => {
             if (event.data.task === 'initialized') {
@@ -49,7 +53,7 @@ export function startParticleWorker(particle) {
 
         events.push(eventHandler);
         workers[index].addEventListener("message", events[index]);
-        updateAllWorkerValues(index);
+        updateAllWorkerValues(index, config);
     });
 }
 
@@ -100,12 +104,23 @@ export function workerResetParticle(index, particleIndex) {
     });
 }
 
+export function setWorkerMaxLifeTimes(index, lifetime) {
+    workers[index].postMessage({
+        task: 'setMaxLifeTimes',
+        value: { lifetime: lifetime }
+    });
+}
+
 
 export function resetWorkerParticles(index) {
     workers[index].postMessage({ task: "resetParticles" });
 }
 
-export function updateAllWorkerValues(index) {
+export function workerResetAllParticles(index) {
+    workers[index].postMessage({ task: "resetAllParticles" });
+}
+
+export function updateAllWorkerValues(index, config = {}) {
     console.log("default particles values")
     console.log(particles[index])
 
@@ -143,6 +158,14 @@ export function workerUpdateSimulation(index, delta,respawn,kill) {
     workers[index].postMessage({ task: "updateSimulation", value: { delta: delta, respawn:respawn,kill:kill}});
 
 }
+
+export function setWorkerEventHandler(index, handlerName, functionKey, args) {
+    workers[index].postMessage({
+        task: "setEventHandler",
+        value: { handlerName, functionKey, args }
+    });
+}
+
 export  function ParticleAutoDisposal(){
     window.addEventListener("beforeunload", function(event) {
         for(let i=0;i<particles.length;i++){

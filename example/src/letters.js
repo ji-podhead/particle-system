@@ -3,19 +3,31 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Particles } from './lib/workerParticles';
 import * as THREE from 'three';
 import { useThree, useFrame } from "@react-three/fiber";
-import { startParticleWorker, workerUpdateSimulation, killWorker } from './lib/workerHelper';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { startParticleWorker, workerUpdateSimulation, killWorker, workerResetAllParticles, setWorkerEventHandler } from './lib/workerHelper';
 import { loadFont } from './lib/utils/fontLoader.js';
-const letters = ['JI Podheadd', 'Fullstack', 'MlOPS'];
-const PARTICLE_COUNT = 6000;
+import { generateTextGeometries } from './lib/utils/geometryUtils.js';
+const letters = ['Fullstack', 'MlOPS','JI Podheadd'];
 const letterPoints = []
 const particleCountsPerWord= []
-const lifetime = 1; // seconds
-let spawnCount=0
+const IDLE_DURATION = 2; // seconds for a word to be displayed
+const TRANSITION_UP_DURATION = 0.5;
+const TRANSITION_XZ_DURATION = 0.5;
+const TRANSITION_DOWN_DURATION = 0.5;
+const lifeTime = 8
+let spawnCount=0;
+const AnimationPhase = {
+    IDLE: 'idle',
+    TRANSITION_UP: 'transition_up',
+    TRANSITION_XZ: 'transition_xz',
+    TRANSITION_DOWN: 'transition_down'
+};
 function ParticleController({ particleSystem, letterGeometries }) {
     const { scene } = useThree();
     const currentTargetIndex = useRef(0);
     const isInitialized = useRef(false);
+    const animationPhase = useRef(AnimationPhase.IDLE);
+    const whirlwindPoints = useRef(null);
+    const phaseTimer = useRef(0);
     const animationState = useRef({
         startTime: null,
         isAnimating: false
@@ -27,31 +39,16 @@ function ParticleController({ particleSystem, letterGeometries }) {
             const boxSize= 0.0028*factor
             const boxDepth= 0.015*factor
             const geometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
-            const material = new THREE.MeshLambertMaterial();
-            material.transparent = true;
+            const material = new THREE.MeshLambertMaterial({
+                color: 0xffffff, // Base color, will be modulated by particle color
+                emissive: 0xffffff, // Base emissive color
+                emissiveIntensity: 1, // How strong the emissive light is
+                transparent: true,
+                opacity: 0.5, // Starting opacity
+                side: THREE.BackSide // Render the back side of the material, as it points inwards
+            });            material.transparent = true;
             const mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = false;
-            const particleMesh = particleSystem.InitializeParticles(scene, mesh, PARTICLE_COUNT);
-            particleSystem.setSpawnOverTime(false);
-            particleSystem.setSourceAttributes("opacity", [1], false);
-            particleSystem.setSourceAttributes("emission", [10, 10, 10], false, -45, 45);
-            particleSystem.setSourceAttributes("color", [254.5, 254.0, 0], false, [50, 50, 50], [250, 250, 250]);
-            // particleSystem.setAttributeOverLifeTime("opacity", [0], [-0.1], false);
-            particleSystem.setAttributeOverLifeTime("color", [0, 0, 0], [1, 0.1, 0], false, [0, 0, 3], [5, 0, 0]);
-
-            particleSystem.setMaxLifeTime(lifetime);
-            // particleSystem.setAttributeOverLifeTime("color", [50, 250, 255], [199, 255, 90], false, [0, 0, 3], [5, 0, 0]);
-            // particleSystem.setSpawnFrequency(0.1);
-            particleSystem.setMaxSpawnCount(PARTICLE_COUNT);
-            particleSystem.setBurstCount(PARTICLE_COUNT);
-            particleSystem.setSpawnOverTime(true);
-            particleSystem.setForce([0.0, 0.0, 0.0]);
-            
-            // particleSystem.setAttributeOverLifeTime("opacity", [0], [1], false);
-            // particleSystem.setAttributeOverLifeTime("position", [0,0,0], [1,1,1], false); // Enable transform over lifetime
-            particleSystem.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
-            console.log("letterGeometries", letterGeometries);
-            
             if (letterGeometries.length > 1) {
                 console.log("Setting initial letter geometries for particle animation.");
                 for (let i = 0; i < letterGeometries.length; i++) {
@@ -62,154 +59,159 @@ function ParticleController({ particleSystem, letterGeometries }) {
                     if(particleCount>spawnCount) spawnCount= particleCount
                     console.log(`- Voxelized into ${particleCount} particles.`);
                 }
-                // particleSystem.setMaxSpawnCount(spawnCount);
-                // particleSystem.setBurstCount(spawnCount);
+                console.log(letterPoints[0])
                 console.log("Max particles in a word:", spawnCount);
                 for (let i = 0; i < letterPoints.length; i++) {
-                    // Pad with zeros if necessary
-                    if(particleCountsPerWord[i] >= spawnCount) {console.log("skipping");continue};
-                    const newArray = new Float32Array(spawnCount * 3)
-                    letterPoints[i].map((v, idx) => { newArray[idx] = v; })
-                    let count =0
-                    for (let i2 = letterPoints[i].length    ; i2 < spawnCount; i2++)
-                    {
-                        count++;
-                        newArray[i2]= letterPoints[i][count];
+                    if (particleCountsPerWord[i] >= spawnCount) {
+                        console.log("skipping padding for:", letters[i]);
+                        continue;
+                    }
+                    const newArray = new Float32Array(spawnCount * 3);
+                    const originalParticleCount = particleCountsPerWord[i];
+                    const originalCoordinatesLength = originalParticleCount * 3;
+                    // Copy existing points
+                    newArray.set(letterPoints[i].slice(0, originalCoordinatesLength));
+                    for (let p = originalParticleCount; p < spawnCount; p++) {
+                        const randomParticleIndex = Math.floor(Math.random() * originalParticleCount);
+                        const sourceIndex = randomParticleIndex * 3;
+                        const targetIndex = p * 3;
+                        newArray[targetIndex] = letterPoints[i][sourceIndex];
+                        newArray[targetIndex + 1] = letterPoints[i][sourceIndex + 1];
+                        newArray[targetIndex + 2] = letterPoints[i][sourceIndex + 2];
                     }
                     letterPoints[i] = newArray;
-                    particleCountsPerWord[i] = spawnCount;
-                    console.log(`Padded letter ${letters[i]} to ${spawnCount} particles.`);
+                    console.log(`Padded letter ${letters[i]} to ${spawnCount} particles with random duplicates.`);
                 }
-                // Set initial positions to the first word
-                // const transformArray = new Float32Array(letterPoints[0]);
-                // for (let i = 1; i < letterPoints[0].length; i++) {
-                //     transformArray[i] = letterPoints[0][i]+ (Math.random() - 0.5) * boxDepth; // Add random depth variation
-                // }
-
-                // particleSystem.burst(spawnCount);
-                // particleSystem.setMaxSpawnCount(particleCountsPerWord[0]);
-                // particleSystem.setBurstCount(particleCountsPerWord[0]);
-                // particleSystem.setMaxSpawnCount(particleCountsPerWord[0]);
-                // particleSystem.setAttributeOverLifeTime("position", [letterPoints[0]], letterPoints[1], false); // Enable transform over lifetime
-                currentTargetIndex.current = 0;
-                animationState.current.startTime = Date.now();
-                animationState.current.isAnimating = true;
-
+            particleSystem.InitializeParticles(scene, mesh, spawnCount);
+            // particleSystem.setSourceAttributes("opacity", [0], false);
+            // particleSystem.setSourceAttributes("emission", [0, 0, 0], false, -45, 45);
+            particleSystem.setSourceAttributes("color", [50.5, 54.0, 0], false, [50, 50, 50], [250, 250, 250]);
+            particleSystem.setAttributeOverLifeTime("color", [0, 0, 0], [199, 255, 90], true, [0, 0, 3], [5, 0, 0]);
+            particleSystem.setMaxLifeTime(2); // Make lifetime effectively infinite
+            particleSystem.setSpawnOverTime(true);
+            particleSystem.setSpawnFrequency(0.001)
+            particleSystem.setForce([0.0, 0.0, 0.0]); // Default force
+            particleSystem.setMaxSpawnCount(spawnCount);
+            particleSystem.setBurstCount(10);
+            particleSystem.setAttributeOverLifeTime("opacity", [0], [1], false);
+            particleSystem.setSourceAttributes("transform", letterPoints[2], false);
+            // particleSystem.setAttributeOverLifeTime("position", letterPoints[2], letterPoints[0], false); // Enable transform over lifetime
+            // particleSystem.setAttributeOverLifeTime("position", letterPoints[0], letterPoints[0]);
+            particleSystem.startPS();
+            startParticleWorker(particleSystem, "./ocWorker.js")
+            // particleSystem.onParticleKill("setLifetimeBasedOnY", {"particleSystemState":"TRANSITION_UP", "index":null},true)
+            currentTargetIndex.current = 0;
+            animationState.current.startTime = Date.now();
+            animationState.current.isAnimating = true;
+            workerResetAllParticles(0) // Removed as it resets instanceCount to 0 and prevents spawning
+            // particleSystem.burst(spawnCount)
+            isInitialized.current = true;
+ 
             } else {
                 console.error("Not enough letter geometries to start animation.");
                 return;
             }
-            // particleSystem.setSourceAttributes("transform", letterPoints[0], false);
-            particleSystem.setStartPositionFromArray(letterPoints[0]);
-            particleSystem.startPS();
-            startParticleWorker(particleSystem, "./ocWorker.js")
-
-            // particleSystem.burst(spawnCount);
-            // workerUpdateSimulation(0, 0, true,true);
-            particleSystem.setAttributeOverLifeTime("position",letterPoints[0],letterPoints[1]); // Enable transform over lifetime
-
-            particleSystem.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
-
-            isInitialized.current = true;
-
+            // particleSystem.burst(spawnCount)
         };
         init();
-        // workerUpdateSimulation(0, 0, true,true);
-
     }, []);
-
     const elapsedTime = useRef(0);
-  const intervalSeconds = 0.021; // Desired interval in seconds
-    var animationBreak=2//   useFrame((state, delta) => {
-//     if(!isInitialized.current) return console.log("not initialized yet");
-//     elapsedTime.current += delta; // Accumulate delta time
-
-//     if (elapsedTime.current >= intervalSeconds) {
-//       // Call the worker function at the desired interval
-//       // The original code passed delta to workerUpdateSimulation, so we continue to do so.
-//       // If a fixed value is needed, this would require further clarification.
-//     //   particleSystem.updateSimulation(0,true,true,true)
-//       workerUpdateSimulation(0, delta,true, true);
-//       particleSystem.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);  
-
-//       elapsedTime.current -= intervalSeconds; // Subtract the interval to maintain accuracy
-//     }
-// },[isInitialized.current]);
+    const intervalSeconds = 0.0021; // Desired interval in seconds
+    let initialBurst=false
     useFrame((state, delta) => {
-        // console.log("isInitialized", isInitialized.current);
-    if (!isInitialized.current) return console.log("not initialized yet");
-    // if(animationBreak>0){
-    //     animationBreak-=delta
-    //     console.log("break", animationBreak)
-    // }else{
-        elapsedTime.current += delta; // Accumulate delta time
+        if (!isInitialized.current) return; 
+        // else if( !initialBurst){ particleSystem.burst(spawnCount); initialBurst=true}
+        phaseTimer.current += delta;
+        elapsedTime.current += delta;
+        let phaseCompleted = false;
+        if (animationPhase.current === AnimationPhase.IDLE && phaseTimer.current >= IDLE_DURATION) {
+            animationPhase.current = AnimationPhase.TRANSITION_UP;
+            phaseCompleted = true;
+        } else if (animationPhase.current === AnimationPhase.TRANSITION_UP && phaseTimer.current >= TRANSITION_UP_DURATION) {
+            animationPhase.current = AnimationPhase.TRANSITION_XZ;
+            phaseCompleted = true;
+        } else if (animationPhase.current === AnimationPhase.TRANSITION_XZ && phaseTimer.current >= TRANSITION_XZ_DURATION) {
+            animationPhase.current = AnimationPhase.TRANSITION_DOWN;
+            phaseCompleted = true;
+        } else if (animationPhase.current === AnimationPhase.TRANSITION_DOWN && phaseTimer.current >= TRANSITION_DOWN_DURATION) {
+            animationPhase.current = AnimationPhase.IDLE;
+            phaseCompleted = true;
+        }
+        // if (phaseCompleted) {
+        //     phaseTimer.current = 0;
+        //     const currentPoints = letterPoints[currentTargetIndex.current];
+        //     const nextIndex = (currentTargetIndex.current + 1) % letters.length;
+        //     const nextPoints = letterPoints[nextIndex];
+        //     if (animationPhase.current === AnimationPhase.TRANSITION_UP) {
+        //         console.log("Transitioning to UP");
+        //         const upPoints = new Float32Array(spawnCount * 3);
+        //         for (let i = 0; i < spawnCount * 3; i += 3) {
+        //             upPoints[i] = currentPoints[i];
+        //             upPoints[i + 1] = currentPoints[i + 1] + 0.2; // Fly up
+        //             upPoints[i + 2] = currentPoints[i + 2];
+        //         }
+        //         whirlwindPoints.current = upPoints; // Store for next phase
+        //         particleSystem.setAttributeOverLifeTime("position", currentPoints, upPoints, false);
+        //     } else if (animationPhase.current === AnimationPhase.TRANSITION_XZ) {
+        //         console.log("Transitioning to XZ");
+        //         const xzPoints = new Float32Array(spawnCount * 3);
+        //         const previousUpPoints = whirlwindPoints.current;
+        //         for (let i = 0; i < spawnCount * 3; i += 3) {
+        //             xzPoints[i] = nextPoints[i]; // Target X
+        //             xzPoints[i + 1] = previousUpPoints[i + 1]; // Keep Y
+        //             xzPoints[i + 2] = nextPoints[i + 2]; // Target Z
+        //         }
+        //         whirlwindPoints.current = xzPoints; // Store for next phase
+        //         particleSystem.setAttributeOverLifeTime("position", previousUpPoints, xzPoints, false);
+        //     } else if (animationPhase.current === AnimationPhase.TRANSITION_DOWN) {
+        //         console.log("Transitioning to DOWN");
+        //         const previousXZPoints = whirlwindPoints.current;
+        //         particleSystem.setAttributeOverLifeTime("position", previousXZPoints, nextPoints, false);
+        //         currentTargetIndex.current = nextIndex;
+        //     } else if (animationPhase.current === AnimationPhase.IDLE) {
+        //         console.log("Now in IDLE phase");
+        //     }
+        // }
         if (elapsedTime.current >= intervalSeconds) {
-            workerUpdateSimulation(0, delta, true,true);
-            elapsedTime.current = -delta
-        
-        if(particleSystem.getAliveCount()<=0){
-                var nextIndex = (currentTargetIndex.current + 1);
-                if (nextIndex >= letters.length) { nextIndex = 0; }
-                console.log("Index", nextIndex);
-                console.log("letter", letters[nextIndex])
-                particleSystem.burst(spawnCount);
-                // particleSystem.setStartPositionFromArray(letterPoints[currentTargetIndex.current]);
-                // particleSystem.setSourceAttributes("transform", letterPoints[currentTargetIndex.current], false);
-                particleSystem.setAttributeOverLifeTime("position", letterPoints[currentTargetIndex.current], letterPoints[nextIndex], false); // Enable transform over lifetime
-                workerUpdateSimulation(0, delta, false,false);
-
-                animationBreak=2
-                currentTargetIndex.current = nextIndex;
-                console.log("next burst")
-                console.log("alive", particleSystem.getAliveCount())
-            }
+            workerUpdateSimulation(0, elapsedTime.current, false, false);
+                // console.log(particleSystem.instance.instanceCount);
             particleSystem.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
-        }    
-    // }
+            elapsedTime.current -= delta;
+        }
     });
-
-    return null;
-}
-
+    }
 export default function LetterAnimation() {
     const particleSystem = useMemo(() => new Particles(), []);
     const [letterGeometries, setLetterGeometries] = useState([]);
-
     useEffect(() => {
         const createGeometries = async () => {
             try {
                 const loadedFont = await loadFont('/fonts/font.json');
-                const geometries = letters.map(letter => {
-                    if (!loadedFont || !loadedFont.generateShapes) {
-                        console.error(`Font data for letter ${letter} is invalid.`);
-                        return null;
-                    }
-                    const textGeometry = new TextGeometry(letter, {
-                        font: loadedFont,
-                        size: 0.11,
-                        height: 0.02, // Add depth for the voxelization to work
-                        curveSegments: 1,
-                        bevelEnabled: false,
-                    });
-                    textGeometry.computeBoundingBox();
-                    textGeometry.center();
-                    return textGeometry;
-                }).filter(g => g !== null);
+                // Use the new utility function to generate geometries
+                const geometries = generateTextGeometries(
+                    letters,
+                    loadedFont,
+                    0.11, // size
+                    0.02, // height (depth)
+                    1,    // curveSegments
+                    false // bevelEnabled
+                );
                 setLetterGeometries(geometries);
             } catch (error) {
                 console.error("Error loading font:", error);
             }
         };
-
         createGeometries();
     }, []);
+    useEffect(() => {
+        if (letterGeometries.length > 0) {
+            const workerIndex = 0; // Assuming only one worker instance
+            setWorkerEventHandler(workerIndex, 'onParticleBirth', 'setLifetimeBasedOnY');
+        }
+    }, [letterGeometries]); // Re-run when geometries are loaded
 
     return (
         <>
-            {/* <mesh>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshBasicMaterial color="red" />
-        </mesh> */}
             {letterGeometries.length > 0 && (
 
                 <ParticleController

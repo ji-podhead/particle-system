@@ -7,6 +7,7 @@ import {
     updateWorkerAttributeOverLifeTime,
     updateWorkerPropertiesMapEntry,
 	resetWorkerParticles,
+	setWorkerMaxLifeTimes,
 	workerBurst,
 	workerResetParticle,
 	updateWorkerParticleAttribute
@@ -156,11 +157,29 @@ export class Particles {
 			temp.random=false
 		}
 		temp.values=maxLifeTime
-		if(this.workerIndex&&updateWorker) 
+		if(this.workerIndex&&updateWorker)
 		{
 			updateWorkerSourceAttribute(this.workerIndex,"maxLifeTime", temp)
 		}
 
+	}
+
+	setMaxLifeTimes(lifetime, updateWorker = true) {
+		const lifeTimeArray = this.properties.get("lifeTime").array;
+		for (let i = 0; i < this.amount; i++) {
+			lifeTimeArray[i * 2 + 1] = lifetime;
+			setWorkerMaxLifeTimes(this.workerIndex, lifetime);
+		}
+	}
+
+	setLifeTimes(lifetime, updateWorker = true) {
+		const lifeTimeArray = this.properties.get("lifeTime").array;
+		for (let i = 0; i < this.amount; i++) {
+			lifeTimeArray[i * 2 + 1] = lifetime;
+		}
+		if (this.isWorker && updateWorker) {
+			updateWorkerProperty(this.workerIndex, "lifeTimes", lifeTimeArray);
+		}
 	}
 
 	resetParticleOnWorker(particleIndex) {
@@ -263,9 +282,12 @@ export class Particles {
 		return [rotationArray[i], rotationArray[i + 1], rotationArray[i + 2]];
 	}
 	getTransform(index) {
+				const transformArray = this.properties.get("transform").array;
+		if(index!=undefined){
 		const i = index * 3;
-		const transformArray = this.properties.get("transform").array;
 		return [transformArray[i], transformArray[i + 1], transformArray[i + 2]];
+		}
+		else {return transformArray}
 	}
 	setForceFieldForce(forceFieldForce, updateWorker = true) {
 		this.forceFieldForce = forceFieldForce;
@@ -362,12 +384,12 @@ export class Particles {
 	positionFromGeometryVoxelized(geometry, boxSize, setStartPosition = false, updateWorker = true) {
 		const points = voxelize(geometry, boxSize);
 		const particleCount = points.length / 3;
+
+		if (setStartPosition) {
+			// Ensure the particle system can hold all the voxels.
 			if (particleCount > this.amount) {
 				console.warn(`Voxelization produced ${particleCount} particles, but the system is initialized with a maximum of ${this.amount}. Some voxels will be omitted.`);
 			}
-		if (setStartPosition) {
-			// Ensure the particle system can hold all the voxels.
-
 			this.setStartPositionFromArray(points, false, 0, 0, updateWorker);
 		}
 		
@@ -706,9 +728,10 @@ export class Particles {
 	 * the arguments that will be passed intoo the constructor of the func function
 	 */
 	onParticleBirth(func, args, updateWorker = true) {
-		this.particleBirthFunction = { func: func, args: args };
+		const obj ={ func: func, args: args };
+		this.particleBirthFunction = obj
 		if (this.isWorker && updateWorker) {
-			updateWorkerProperty(this.workerIndex, "hasParticleBirthFunction", !!func);
+			updateWorkerProperty(this.workerIndex, "setEventHandler", ["onParticleBirth",func,args]);
 		}
 	}
 	/**
@@ -720,9 +743,10 @@ export class Particles {
 	 * the arguments that will be passed intoo the constructor of the func function
 	 */
 	onParticleKill(func, args, updateWorker = true) {
-		this.particleKillFunction = { func: func, args: args };
+		const obj ={ func: func, args: args };
+		this.particleKillFunction = obj
 		if (this.isWorker && updateWorker) {
-			updateWorkerProperty(this.workerIndex, "hasParticleKillFunction", !!func);
+			updateWorkerProperty(this.workerIndex, "setEventHandler", ["onParticleKill",func,args]);
 		}
 	}
 		createEventFunction() {
@@ -935,10 +959,12 @@ burst(amount1,position1){
 		//console.log("newCount" + this.instance.instanceCount)
 		//console.log(lifeTime)
 		//console.log(this.properties.get("transform"))
-	//if(this.particleBirthFunction!=undefined){
-		//		this.particleBirthFunction.args.index=this.instance.instanceCount
-		//		this.particleBirthFunction.func(this.particleBirthFunction.args)
-		//	}
+	if(this.particleBirthFunction!=undefined){
+				// Pass the current instance count as the index for the birth function
+				// The actual particle index will be determined by the worker logic
+				this.particleBirthFunction.args.index = this.instance.instanceCount;
+				this.particleBirthFunction.func(this.particleBirthFunction.args);
+			}
 	}
 		}
 	//	console.log(this.instance.instanceCount)
@@ -1160,14 +1186,17 @@ burst(amount1,position1){
 					//console.log("kill " + index + " killcount " +killCount)
 
 					if(reset)
-					{this.resetParticle(index,attributesoverLifeTimeValues)}
+					{
+						// Call the kill function before resetting the particle
+						if(this.particleKillFunction!=undefined){
+							// Pass the current particle index to the kill function
+							this.particleKillFunction.args.index = index;
+							this.particleKillFunction.func(this.particleKillFunction.args);
+						}
+						this.resetParticle(index,attributesoverLifeTimeValues)
+					}
 
 						//console.log("kill " + index)
-			//	if(this.particleKillFunction!=undefined){
-			//	let args =this.particleKillFunction.args
-			//	args.index=i
-			//this.particleKillFunction.func(args)
-				//}
 				}
 
 

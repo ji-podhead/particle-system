@@ -35,7 +35,7 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     particle.setAttributeOverLifeTime("rotation", [0, 0, 0], [1, 1, 1], false);
     particle.setAttributeOverLifeTime("force", [0, 0, 0], [0, 0, 0], false);
     particle.setAttributeOverLifeTime("color", [255, 250, 255], [199, 255, 90], true, [0, 0, 3], [5, 0, 0]);
-    particle.setSpawnFrequency(0);
+    particle.setSpawnFrequency(0.2);
     particle.setMaxSpawnCount(500);
     particle.setBurstCount(50);
     // particle.setSpawnOverTime(true);
@@ -43,7 +43,7 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
     particle.startPS();
     particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);
     particle.burst(50,[0,0,0])
-    // startParticleWorker(particle,"./ocWorker.js")
+    startParticleWorker(particle,"./ocWorker.js")
     // workerUpdateSimulation(0,0.1)
 
     // Placeholder for childParticle initialization if needed
@@ -69,8 +69,8 @@ function SceneInitializer({ particle, childParticle, amount }) { // Receive prop
       // Call the worker function at the desired interval
       // The original code passed delta to workerUpdateSimulation, so we continue to do so.
       // If a fixed value is needed, this would require further clarification.
-      particle.updateSimulation(0,true,true,true)
-      // workerUpdateSimulation(0, delta);
+      //particle.updateSimulation(0,true,true,true)
+      workerUpdateSimulation(0, delta,false,true);
       particle.updateValues(["transform", "color", "emission", "opacity", "rotation", "scale"]);  
 
       elapsedTime.current -= intervalSeconds; // Subtract the interval to maintain accuracy

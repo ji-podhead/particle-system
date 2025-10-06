@@ -1,9 +1,11 @@
 "use client"
 import React, { useEffect, useRef } from 'react';
 import LetterAnimation from "./letters"
+
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from 'three';
+import Spawn from './spawn';
 
 function Controls() {
   const { camera, gl } = useThree();
