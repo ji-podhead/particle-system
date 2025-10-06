@@ -1,4 +1,5 @@
 # JS Particle System
+<img width="3440" height="1440" alt="Bildschirmfoto von 2025-10-06 16-56-28" src="https://github.com/user-attachments/assets/49d2e98a-345d-4ce8-9385-1aa6364018e4" />
 
 A pure JavaScript particle system library designed for use with Three.js. It supports both single-threaded and multi-threaded (Web Worker) operation for high-performance particle simulations.
 
