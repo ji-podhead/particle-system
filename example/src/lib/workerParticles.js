@@ -1205,6 +1205,11 @@ burst(amount1,position1){
 			killCount=0
 
 	}
+	    setParticleColors(colors) {
+        const colorAttribute = this.properties.get("color").attribute;
+        colorAttribute.array.set(colors);
+        colorAttribute.needsUpdate = true;
+    }
 	InitializeParticles(scene, mesh, amount, maxLifeTime, burstCount, spawnOverTime, spawnFrequency, maxSpawnCount, startPosition, startScale, startRotation,startDirection, startOpacity,startColor, startForce, startForceFieldForce) {
 		this.spawnOfset=0
 		this.indexSlide=false
@@ -1335,6 +1340,8 @@ burst(amount1,position1){
 		this.properties.set("lifeTime",{array:lifeTimeArray})
 		this.properties.set("opacity",{array:opacityArray,attribute:opacityAttribute})
 
+
+
 		this.individualTransform = this.properties.get("sourceValues").has("transform") && (this.properties.get("sourceValues").get("transform").values.length > 3);
 		this.individualRotation = this.properties.get("sourceValues").has("rotation") && (this.properties.get("sourceValues").get("rotation").values.length > 3);
 		this.individualScale = this.properties.get("sourceValues").has("scale") && (this.properties.get("sourceValues").get("scale").values.length > 3);
@@ -1347,86 +1354,69 @@ burst(amount1,position1){
 		console.log("individualForceField", this.individualForceField);
 
 		intersectsScene.updateMatrixWorld(true)
-		const instanceMaterial = mesh.material
-		if(instanceMaterial.transparent==true){
-			instanceMaterial.depthWrite=false
-		}
-			//	mat4 aInstanceMatrix = mat4(aInstanceMatrix0,aInstanceMatrix1,aInstanceMatrix2,aInstanceMatrix3);
-		//vec3 transformed = (aInstanceMatrix * vec4( position , 1. )).xyz;
-		//++++++++++++  >>shader<<  +++++++++++++
-instanceMaterial.onBeforeCompile = shader => {
-	shader.vertexShader = `
-	attribute vec3 boxPosition;
-	attribute vec3 boxSize;
-	attribute vec3 rotation;
-	attribute vec3 aInstanceColor;
-	attribute vec3 aInstanceEmissive;
-	attribute vec3 morphTargets;
-	attribute float morphTargetInfluences;
-	attribute float opacity1;
-	mat4 rotationMatrix(vec3 axis, float angle)
-	{
-		axis = normalize(axis);
-		float s = sin(angle);
-		float c = cos(angle);
-		float oc = 1.0 - c;
-		return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
-					oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
-					oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
-					0.0,                                0.0,                                0.0,                                1.0);
-	}
-	mat4 rotateXYZ() {
-	  return rotationMatrix(vec3(1, 0, 0), rotation.x) * rotationMatrix(vec3(0, 1, 0), rotation.y) * rotationMatrix(vec3(0, 0, 1), rotation.z) ;
-	}
-	` + shader.vertexShader;
-	shader.vertexShader = `
-  varying vec3 vInstanceColor;
-  varying vec3 vInstanceEmissive;
-  varying vec3 vmorphTargets;
-  varying float vmorphTargetInfluences;
-  varying float vOpacity;
-  ${shader.vertexShader.replace(
-`#include <color_vertex>`,
-`#include <color_vertex>
-	 vInstanceColor = aInstanceColor;
-	 vInstanceEmissive = aInstanceEmissive;
-	 vOpacity=opacity1;
-	  `
-)}`
-	shader.vertexShader = shader.vertexShader.replace(
-	    `#include <begin_vertex>`,
-    `#include <begin_vertex>
-    mat4 rotationMatrix = rotateXYZ();
-	mat4 scaleMatrix =  mat4(
-							 boxSize.x,0.0,0.0,0.0,
-							 0.0,boxSize.y,0.0,0.0,
-							 0.0,0.0,boxSize.z,0.0,
-							 0.0,0.0,0.0,1.0);
-	mat4 positionMatrix = mat4(
-								1.0,0.0,0.0,boxPosition.x,
-								0.0,1.0,0.0,boxPosition.y,
-								0.0,0.0,1.0,boxPosition.z,
-								0.0,0.0,0.0,1.0);
-	 mat4 _aInstanceMatrix = mat4(scaleMatrix*rotationMatrix);
-								transformed = (_aInstanceMatrix * vec4( position , 1. )*positionMatrix).xyz;
-	vNormal = (_aInstanceMatrix*vec4(normalize(position), 1.0)).xyz;
-
-	`,
-  );
-shader.fragmentShader = `
-  varying vec3 vInstanceColor;
-  varying float vOpacity;
-  ${shader.fragmentShader.replace(
-'vec4 diffuseColor = vec4( diffuse, opacity );',
-'vec4 diffuseColor = vec4( vInstanceColor, vOpacity );',
-)}`
-shader.fragmentShader = `
-  varying vec3 vInstanceEmissive;
-  ${shader.fragmentShader.replace(
-'vec3 totalEmissiveRadiance = emissive;',
-'vec3 totalEmissiveRadiance = vInstanceEmissive; ',
-)}`
-};
+		const instanceMaterial = new THREE.ShaderMaterial({
+			vertexShader: `
+				attribute vec3 boxPosition;
+				attribute vec3 boxSize;
+				attribute vec3 rotation;
+				attribute vec3 aInstanceColor;
+				attribute float opacity1;
+		
+				varying vec3 vInstanceColor;
+				varying float vOpacity;
+				varying vec3 vNormal;
+		
+				mat4 rotationMatrix(vec3 axis, float angle) {
+					axis = normalize(axis);
+					float s = sin(angle);
+					float c = cos(angle);
+					float oc = 1.0 - c;
+					return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+								oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+								oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+								0.0,                                0.0,                                0.0,                                1.0);
+				}
+		
+				mat4 rotateXYZ() {
+					return rotationMatrix(vec3(1, 0, 0), rotation.x) * rotationMatrix(vec3(0, 1, 0), rotation.y) * rotationMatrix(vec3(0, 0, 1), rotation.z);
+				}
+		
+				void main() {
+					vInstanceColor = aInstanceColor;
+					vOpacity = opacity1;
+					vNormal = normal;
+		
+					mat4 rotationMatrix = rotateXYZ();
+					mat4 scaleMatrix = mat4(
+						boxSize.x, 0.0, 0.0, 0.0,
+						0.0, boxSize.y, 0.0, 0.0,
+						0.0, 0.0, boxSize.z, 0.0,
+						0.0, 0.0, 0.0, 1.0
+					);
+		
+					vec3 transformed = (rotationMatrix * scaleMatrix * vec4(position, 1.0)).xyz + boxPosition;
+					gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
+				}
+			`,
+			fragmentShader: `
+				varying vec3 vInstanceColor;
+				varying float vOpacity;
+				varying vec3 vNormal;
+		
+				void main() {
+					vec3 baseColor = vInstanceColor / 255.0; // Normalize color
+					float edge = smoothstep(0.45, 0.5, abs(vNormal.x)) + 
+								 smoothstep(0.45, 0.5, abs(vNormal.y)) + 
+								 smoothstep(0.45, 0.5, abs(vNormal.z));
+					edge = clamp(edge, 0.0, 1.0);
+		
+					vec3 finalColor = mix(vec3(0.0), baseColor, edge);
+					gl_FragColor = vec4(finalColor, vOpacity * edge);
+				}
+			`,
+			transparent: true,
+			depthWrite: false,
+		});
 	//this.instance.instanceCount=0; // No longer needed, set earlier
 		//++++++++++++ >>add initialized instances to scene <<  ++++++++++++++++++
 		const instaneMesh = new THREE.Mesh(

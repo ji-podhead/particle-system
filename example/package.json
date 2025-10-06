@@ -9,7 +9,8 @@
     "react-dom": "18.2.0",
     "react-use-refs": "^1.0.1",
     "three": "^0.172.0",
-    "three-stdlib": "^2.35.16"
+    "three-stdlib": "^2.35.16",
+    "@react-three/postprocessing": "*"
   },
   "scripts": {
     "start": "react-scripts start",

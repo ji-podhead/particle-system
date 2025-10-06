@@ -1,36 +1,55 @@
-// psList.dataPS.list[0]?.updateSimulation(delta,true,true)
-// psList.dataPS.list[0]?.updateValues(["transform", "color", "emission","opacity"])
 function postMsgFunction(index, values) {
-    // console.log("lifetime array")
-    // console.log(values.lifeTime)
-  //  console.log(particles[index].instance)
-  //  alert("aaaaaa")
-    particles[index].instance.instanceCount = values.instanceCount; // Log instanceCount
-    // console.log(`Particle ${index} instanceCount: ${values.instanceCount}`);
+    const particle = particles[index];
+    if (!particle || !particle.instance) {
+        console.error(`Particle or particle instance at index ${index} is not available.`);
+        return;
+    }
+
+    particle.instance.instanceCount = values.instanceCount;
+    const attributes = particle.instance.attributes;
 
     if (values.lifeTimes) {
-        particles[index].properties.get("lifeTime").array.set(values.lifeTimes);
+        particle.properties.get("lifeTime").array.set(values.lifeTimes);
     }
 
+    // The main data payload from the worker's updateSimulation
     if (values.transform) {
         try {
-            particles[index].instance.attributes.boxPosition.array = values.transform;
-            particles[index].instance.attributes.rotation.array = values.rotation;
-            particles[index].instance.attributes.boxSize.array = values.scale;
-        } catch (error) {
-            console.error(`Error assigning transform arrays for particle ${index}:`, error);
-            console.error(`Received transformArrays:`, values);
-            // Optionally, you could try to assign default empty arrays or skip assignment here
-            // to prevent the application from crashing, but logging the error is crucial for debugging.
-        }
-    } else {
-        console.warn("worker received no values");
-    }
+            attributes.boxPosition.array.set(values.transform);
+            attributes.boxPosition.needsUpdate = true;
 
-    particles[index].lifeTime=values.lifeTime
-    particles[index].properties.get("direction").array=values.directionArray
-   // console.log(index + " got value")
-    particles[index].updateValues(["transform", "color", "emission","opacity"])
+            attributes.rotation.array.set(values.rotation);
+            attributes.rotation.needsUpdate = true;
+
+            attributes.boxSize.array.set(values.scale);
+            attributes.boxSize.needsUpdate = true;
+
+            if (values.color) {
+                attributes.aInstanceColor.array.set(values.color);
+                attributes.aInstanceColor.needsUpdate = true;
+            }
+            if (values.emission) {
+                attributes.aInstanceEmissive.array.set(values.emission);
+                attributes.aInstanceEmissive.needsUpdate = true;
+            }
+            if (values.opacity) {
+                attributes.opacity1.array.set(values.opacity);
+                attributes.opacity1.needsUpdate = true;
+            }
+            if (values.direction) {
+                particle.properties.get("direction").array.set(values.direction);
+            }
+             if (values.lifeTime) {
+                particle.properties.get("lifeTime").array.set(values.lifeTime);
+            }
+
+        } catch (error) {
+            console.error(`Error updating particle attributes for index ${index}:`, error);
+            console.error(`Received values:`, values);
+        }
+    } else if (!values.lifeTimes) { // Avoid warning if only lifeTimes is sent
+        console.warn("worker received no values to update");
+    }
 }
 const workers = []
 const events = []

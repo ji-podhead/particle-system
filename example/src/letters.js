@@ -6,7 +6,15 @@ import { useThree, useFrame } from "@react-three/fiber";
 import { startParticleWorker, workerUpdateSimulation, killWorker, workerResetAllParticles, setWorkerEventHandler } from './lib/workerHelper';
 import { loadFont } from './lib/utils/fontLoader.js';
 import { generateTextGeometries } from './lib/utils/geometryUtils.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { EffectComposer, 
+    Bloom, DepthOfField, Glitch, Noise, Outline, Pixelation, MotionBlur,Vignette
+ } from '@react-three/postprocessing';
+import GridFloor from './lib/shader/GridFloor';
+import ModelParticleController from './lib/ModelParticleControler.js';
+import { textureVoxelizer } from './lib/utils/textureVoxelizer.js';
 const letters = ['Fullstack', 'MlOPS','JI Podheadd'];
+
 const letterPoints = []
 const particleCountsPerWord= []
 const IDLE_DURATION = 2; // seconds for a word to be displayed
@@ -180,44 +188,74 @@ function ParticleController({ particleSystem, letterGeometries }) {
         }
     });
     }
+
+
 export default function LetterAnimation() {
     const particleSystem = useMemo(() => new Particles(), []);
     const [letterGeometries, setLetterGeometries] = useState([]);
+    const [modelGeometries, setModelGeometries] = useState([]);
+
     useEffect(() => {
         const createGeometries = async () => {
             try {
                 const loadedFont = await loadFont('/fonts/font.json');
-                // Use the new utility function to generate geometries
                 const geometries = generateTextGeometries(
                     letters,
                     loadedFont,
-                    0.11, // size
-                    0.02, // height (depth)
-                    1,    // curveSegments
-                    false // bevelEnabled
+                    0.11,
+                    0.02,
+                    1,
+                    false
                 );
                 setLetterGeometries(geometries);
+
+                const loader = new GLTFLoader();
+                loader.load('/3d/Retro Pc.glb', (gltf) => {
+                    const loadedGeometries = [];
+                    gltf.scene.traverse((child) => {
+                        if (child.isMesh) {
+                            loadedGeometries.push(child.geometry);
+                        }
+                    });
+                    setModelGeometries(loadedGeometries);
+                    console.log("Retro PC model loaded successfully.");
+                });
+
             } catch (error) {
-                console.error("Error loading font:", error);
+                console.error("Error loading assets:", error);
             }
         };
         createGeometries();
     }, []);
+
     useEffect(() => {
         if (letterGeometries.length > 0) {
-            const workerIndex = 0; // Assuming only one worker instance
+            const workerIndex = 0;
             setWorkerEventHandler(workerIndex, 'onParticleBirth', 'setLifetimeBasedOnY');
         }
-    }, [letterGeometries]); // Re-run when geometries are loaded
+    }, [letterGeometries]);
 
     return (
         <>
-            {letterGeometries.length > 0 && (
-
-                <ParticleController
-                    particleSystem={particleSystem}
-                    letterGeometries={letterGeometries}
-                />
+            {(letterGeometries.length > 0 || modelGeometries.length > 0) && (
+                <EffectComposer>
+                    <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} height={480} />
+                    <Glitch delay={[0.5, 1]} duration={[0.1, 0.2]} strength={[0.1, 0.2]} />
+                    <Vignette offset={0.3} darkness={0.9} />
+                    <Noise opacity={0.02} />
+                    <Outline selectionLayer={1} visibleEdgeColor="white" hiddenEdgeColor="white" />
+                    <Pixelation granularity={5} />
+                    {letterGeometries.length > 0 && 
+                        <ParticleController
+                            particleSystem={particleSystem}
+                            letterGeometries={letterGeometries}
+                        />
+                    }
+                    {modelGeometries.length > 0 && 
+                        <ModelParticleController modelGeometries={modelGeometries} />
+                    }
+                    <GridFloor />
+                </EffectComposer>
             )}
         </>
     );
